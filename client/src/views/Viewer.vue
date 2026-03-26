@@ -254,7 +254,11 @@ const chat = useChat()
 
 // 状态
 const remoteVideo = ref<HTMLVideoElement | null>(null)
-const roomId = ref('')
+const _roomId = ref('')
+const roomId = computed({
+  get: () => _roomId.value,
+  set: (val: string) => { _roomId.value = val.toUpperCase() }
+})
 const isMuted = ref(false)
 const showPerfPanel = ref(true)
 const autoReconnect = ref(true)

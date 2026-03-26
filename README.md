@@ -291,6 +291,33 @@ server {
 
 4. **配置 Nginx** 并重启
 
+### 自动部署（GitHub Actions）
+
+本项目支持通过 GitHub Actions 自动部署。
+
+1. **Fork 本仓库**
+
+2. **配置 GitHub Secrets**
+   
+   在仓库设置中添加以下 Secrets：
+   
+   | Secret 名称 | 说明 |
+   |------------|------|
+   | `SERVER_HOST` | 服务器地址（如 `your-domain.com`） |
+   | `SERVER_USER` | SSH 用户名 |
+   | `SERVER_SSH_KEY` | SSH 私钥内容 |
+
+3. **修改 deploy.yml 中的配置**
+   
+   编辑 `.github/workflows/deploy.yml`，修改：
+   - 第 37 行：`VITE_SIGNALING_SERVER_URL=wss://your-domain.com:7777/ws`
+   - 第 69 行：服务器上的 PATH 路径
+
+4. **推送代码触发部署**
+   ```bash
+   git push origin main
+   ```
+
 ## 📝 许可证
 
 [MIT License](./LICENSE)

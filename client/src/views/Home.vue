@@ -319,7 +319,11 @@ const media = useMediaStream()
 const localVideo = ref<HTMLVideoElement | null>(null)
 
 // 状态
-const roomId = ref('')
+const _roomId = ref('')
+const roomId = computed({
+  get: () => _roomId.value,
+  set: (val: string) => { _roomId.value = val.toUpperCase() }
+})
 const currentStreamType = ref('')
 const showPerfPanel = ref(true)
 const isGettingStream = ref(false)

@@ -1,9 +1,56 @@
 import { isAndroidTablet, isMobile } from './ui-utils'
 
-// 设备检测结果缓存
 const IS_ANDROID_TABLET = isAndroidTablet()
-const _IS_MOBILE = isMobile() // 保留供未来使用
-void _IS_MOBILE // 避免未使用警告
+const _IS_MOBILE = isMobile()
+void _IS_MOBILE
+
+export type VideoCodec = 'vp9' | 'vp8' | 'h264' | 'av1'
+
+interface CodecPreference {
+  mimeType: string
+  sdpFmtpLine?: string
+}
+
+const CODEC_PREFERENCES: Record<VideoCodec, CodecPreference> = {
+  vp9: { mimeType: 'video/VP9', sdpFmtpLine: 'profile-id=0' },
+  vp8: { mimeType: 'video/VP8' },
+  h264: { mimeType: 'video/H264', sdpFmtpLine: 'level-asymmetry-allowed=1;packetization-mode=1;profile-level-id=42e01f' },
+  av1: { mimeType: 'video/AV1' }
+}
+
+export function getSupportedCodecs(): VideoCodec[] {
+  const supported: VideoCodec[] = []
+  const capabilities = RTCRtpSender.getCapabilities('video')
+  
+  if (!capabilities) return ['h264']
+  
+  const codecs = capabilities.codecs || []
+  
+  for (const [codec] of Object.entries(CODEC_PREFERENCES)) {
+    const pref = CODEC_PREFERENCES[codec as VideoCodec]
+    const isSupported = codecs.some(c => 
+      c.mimeType.toLowerCase() === pref.mimeType.toLowerCase()
+    )
+    if (isSupported) {
+      supported.push(codec as VideoCodec)
+    }
+  }
+  
+  return supported.length > 0 ? supported : ['h264']
+}
+
+export function getBestCodec(): VideoCodec {
+  const supported = getSupportedCodecs()
+  const priority: VideoCodec[] = ['vp9', 'av1', 'h264', 'vp8']
+  
+  for (const codec of priority) {
+    if (supported.includes(codec)) {
+      return codec
+    }
+  }
+  
+  return 'h264'
+}
 
 interface ResolutionConstraints {
   width: { ideal: number; max: number }
@@ -263,7 +310,8 @@ export function createPeerConnectionConfig(): RTCConfiguration {
  */
 export async function applySenderParameters(
   sender: RTCRtpSender,
-  targetBitrateKbps: number
+  targetBitrateKbps: number,
+  preferredCodec?: VideoCodec
 ): Promise<boolean> {
   if (!sender || !sender.track || sender.track.kind !== 'video') {
     return false
@@ -287,7 +335,24 @@ export async function applySenderParameters(
 
     params.encodings[0].active = true
 
+    const codec = preferredCodec || getBestCodec()
+    const codecPref = CODEC_PREFERENCES[codec]
+    
+    if (params.codecs && params.codecs.length > 0) {
+      const preferredCodecs = params.codecs.filter(c => 
+        c.mimeType.toLowerCase() === codecPref.mimeType.toLowerCase()
+      )
+      
+      if (preferredCodecs.length > 0) {
+        const otherCodecs = params.codecs.filter(c => 
+          c.mimeType.toLowerCase() !== codecPref.mimeType.toLowerCase()
+        )
+        params.codecs = [...preferredCodecs, ...otherCodecs]
+      }
+    }
+
     await sender.setParameters(params)
+    console.log(`视频编码器设置: ${codec.toUpperCase()}, 码率: ${targetBitrateKbps}kbps`)
     return true
   } catch (error) {
     console.warn('无法应用 sender 参数:', error)
