@@ -1,0 +1,322 @@
+import { isAndroidTablet, isMobile } from './ui-utils'
+
+// 设备检测结果缓存
+const IS_ANDROID_TABLET = isAndroidTablet()
+const _IS_MOBILE = isMobile() // 保留供未来使用
+void _IS_MOBILE // 避免未使用警告
+
+interface ResolutionConstraints {
+  width: { ideal: number; max: number }
+  height: { ideal: number; max: number }
+}
+
+interface ScreenStreamOptions {
+  frameRate?: number
+  resolution?: string
+  shareAudio?: boolean
+  shareCursor?: boolean
+  onAndroidTablet?: boolean
+}
+
+interface AudioStreamOptions {
+  echoCancellation?: boolean
+  noiseSuppression?: boolean
+  autoGainControl?: boolean
+  sampleRate?: number
+  channelCount?: number
+}
+
+// 设备缓存
+interface DeviceCache {
+  devices: MediaDeviceInfo[]
+  timestamp: number
+}
+
+const deviceCache: DeviceCache = { devices: [], timestamp: 0 }
+
+/**
+ * 获取分辨率约束
+ */
+export function getResolutionConstraints(resolution: string): ResolutionConstraints {
+  switch (resolution) {
+    case '720p':
+      return { width: { ideal: 1280, max: 1920 }, height: { ideal: 720, max: 1080 } }
+    case '1080p':
+      return { width: { ideal: 1920, max: 2560 }, height: { ideal: 1080, max: 1440 } }
+    case '1440p':
+      return { width: { ideal: 2560, max: 3840 }, height: { ideal: 1440, max: 2160 } }
+    case '4k':
+      return { width: { ideal: 3840, max: 3840 }, height: { ideal: 2160, max: 2160 } }
+    case 'native':
+      return { 
+        width: { ideal: screen.width, max: screen.width * 2 },
+        height: { ideal: screen.height, max: screen.height * 2 }
+      }
+    default:
+      return { width: { ideal: 1920, max: 2560 }, height: { ideal: 1080, max: 1440 } }
+  }
+}
+
+/**
+ * 根据分辨率选项返回推荐基础码率（kbps）
+ */
+export function getBaseBitrateKbpsForResolution(resolutionValue: string): number {
+  switch (resolutionValue) {
+    case '720p':
+      return 3000
+    case '1080p':
+      return 5000
+    case '1440p':
+      return 10000
+    case '4k':
+    case 'native':
+      return 20000
+    default:
+      return 5000
+  }
+}
+
+/**
+ * 按画质预设抬高码率下限
+ */
+export function applyQualityPresetToBitrate(baseBitrateKbps: number, preset?: string): number {
+  if (!preset) return baseBitrateKbps
+  let target = baseBitrateKbps
+  switch (preset) {
+    case 'balanced':
+      target = Math.max(target, 5000)
+      break
+    case 'high':
+      target = Math.max(target, 10000)
+      break
+    case 'ultra':
+      target = Math.max(target, 20000)
+      break
+    case 'lossless':
+      target = Math.max(target, 40000)
+      break
+  }
+  return target
+}
+
+/**
+ * 获取音频设备列表
+ */
+export async function getAudioDevices(force = false): Promise<MediaDeviceInfo[]> {
+  const AUDIO_DEVICE_CACHE_MS = 5000
+  const now = Date.now()
+  
+  if (!force && deviceCache.devices.length && (now - deviceCache.timestamp < AUDIO_DEVICE_CACHE_MS)) {
+    return deviceCache.devices
+  }
+  
+  const devices = await navigator.mediaDevices.enumerateDevices()
+  const audioDevices = devices.filter(d => d.kind === 'audioinput')
+  
+  deviceCache.devices = audioDevices
+  deviceCache.timestamp = now
+  
+  return audioDevices
+}
+
+/**
+ * 获取屏幕共享流
+ */
+export async function getScreenStream(options: ScreenStreamOptions = {}): Promise<MediaStream> {
+  const {
+    frameRate = 30,
+    resolution = '1080p',
+    shareAudio = false,
+    shareCursor = true,
+    onAndroidTablet = IS_ANDROID_TABLET
+  } = options
+
+  console.log('getScreenStream 调用，参数:', options)
+  
+  const resolutionConstraints = getResolutionConstraints(resolution)
+  console.log('分辨率约束:', resolutionConstraints)
+  
+  let usedResolution = resolutionConstraints
+  let usedFrameRate = frameRate
+  if (onAndroidTablet) {
+    usedResolution = { width: { ideal: 1280, max: 1920 }, height: { ideal: 720, max: 1080 } }
+    usedFrameRate = Math.min(frameRate, 30)
+    console.log('Android平板模式，调整参数:', { usedResolution, usedFrameRate })
+  }
+
+  const constraints: MediaStreamConstraints & { audio?: boolean; video: MediaTrackConstraints & { cursor?: string } } = {
+    video: {
+      displaySurface: 'monitor',
+      width: usedResolution.width,
+      height: usedResolution.height,
+      frameRate: { ideal: usedFrameRate, max: usedFrameRate }
+    }
+  }
+
+  if (shareAudio) {
+    constraints.audio = true
+  }
+
+  // 添加 cursor 选项（非标准属性，需要类型断言）
+  if (shareCursor) {
+    (constraints.video as MediaTrackConstraints & { cursor?: string }).cursor = 'always'
+  }
+
+  console.log('屏幕共享约束条件:', constraints)
+  
+  let stream: MediaStream | null = null
+  
+  if (navigator.mediaDevices && typeof navigator.mediaDevices.getDisplayMedia === 'function') {
+    console.log('浏览器支持 getDisplayMedia，尝试获取屏幕共享...')
+    try {
+      stream = await navigator.mediaDevices.getDisplayMedia(constraints)
+      console.log('getDisplayMedia 成功')
+    } catch (err) {
+      console.warn('getDisplayMedia 失败:', err)
+      stream = null
+    }
+  } else {
+    console.warn('浏览器不支持 getDisplayMedia')
+  }
+
+  if (!stream) {
+    console.log('尝试回退到摄像头采集...')
+    try {
+      const cameraConstraints: MediaStreamConstraints = {
+        video: {
+          facingMode: { ideal: 'environment' },
+          width: usedResolution.width,
+          height: usedResolution.height,
+          frameRate: { ideal: usedFrameRate, max: usedFrameRate }
+        },
+        audio: false
+      }
+      
+      stream = await navigator.mediaDevices.getUserMedia(cameraConstraints)
+      console.log('摄像头采集成功')
+    } catch (camErr) {
+      throw new Error(`无法获取屏幕或摄像头视频流: ${(camErr as Error).message}`)
+    }
+  }
+
+  if (!stream) {
+    throw new Error('获取到的流为null或undefined')
+  }
+  
+  const videoTrack = stream.getVideoTracks()[0]
+  if (!videoTrack) {
+    throw new Error('未获取到视频轨道')
+  }
+
+  return stream
+}
+
+/**
+ * 获取音频流
+ */
+export async function getAudioStream(deviceId: string, options: AudioStreamOptions = {}): Promise<MediaStream | null> {
+  if (!deviceId) {
+    return null
+  }
+
+  const {
+    echoCancellation = false,
+    noiseSuppression = false,
+    autoGainControl = false,
+    sampleRate = 48000,
+    channelCount = 2
+  } = options
+
+  try {
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: {
+        deviceId: { exact: deviceId },
+        echoCancellation,
+        noiseSuppression,
+        autoGainControl,
+        sampleRate,
+        channelCount
+      }
+    })
+
+    return stream
+  } catch (error) {
+    console.warn('获取音频流失败:', error)
+    return null
+  }
+}
+
+/**
+ * 创建 PeerConnection 配置
+ */
+export function createPeerConnectionConfig(): RTCConfiguration {
+  return {
+    iceServers: [
+      { urls: 'stun:stun.l.google.com:19302' },
+      { urls: 'stun:stun1.l.google.com:19302' }
+    ]
+  }
+}
+
+/**
+ * 设置视频编码器参数
+ */
+export async function applySenderParameters(
+  sender: RTCRtpSender,
+  targetBitrateKbps: number
+): Promise<boolean> {
+  if (!sender || !sender.track || sender.track.kind !== 'video') {
+    return false
+  }
+
+  try {
+    const params = sender.getParameters()
+    
+    if (!params.encodings || params.encodings.length === 0) {
+      params.encodings = [{}]
+    }
+
+    const targetBps = Math.max(100000, Math.floor(targetBitrateKbps * 1000))
+    params.encodings[0].maxBitrate = targetBps
+
+    if (IS_ANDROID_TABLET) {
+      params.encodings[0].scaleResolutionDownBy = params.encodings[0].scaleResolutionDownBy || 1.5
+    } else {
+      params.encodings[0].scaleResolutionDownBy = params.encodings[0].scaleResolutionDownBy || 1
+    }
+
+    params.encodings[0].active = true
+
+    await sender.setParameters(params)
+    return true
+  } catch (error) {
+    console.warn('无法应用 sender 参数:', error)
+    return false
+  }
+}
+
+/**
+ * 设置 SDP 带宽限制
+ */
+export function setSdpBandwidth(sdp: string | undefined, targetBitrateKbps: number): string | undefined {
+  if (!sdp || !sdp.includes('m=video')) {
+    return sdp
+  }
+  
+  return sdp.replace(/(m=video.*\r\n)/g, `$1b=AS:${targetBitrateKbps}\r\n`)
+}
+
+/**
+ * 设置视频轨道 contentHint
+ */
+export function setVideoContentHint(videoTrack: MediaStreamTrack, hint: 'detail' | 'motion' | 'text' = 'detail'): boolean {
+  if (videoTrack && 'contentHint' in videoTrack) {
+    try {
+      videoTrack.contentHint = hint
+      return true
+    } catch (e) {
+      console.warn('设置 contentHint 失败', e)
+    }
+  }
+  return false
+}

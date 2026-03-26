@@ -1,0 +1,34 @@
+{
+  "name": "webrtc-stream-vue3",
+  "version": "1.0.0",
+  "description": "A real-time audio/video communication system based on WebRTC, supporting screen sharing, camera streaming, and real-time chat",
+  "author": "yukari017",
+  "license": "MIT",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/yukari017/webrtc-stream-vue3"
+  },
+  "keywords": [
+    "webrtc",
+    "vue3",
+    "streaming",
+    "video",
+    "screen-share",
+    "real-time",
+    "p2p",
+    "live"
+  ],
+  "scripts": {
+    "dev:client": "cd client && pnpm dev",
+    "dev:server": "cd server && pnpm dev",
+    "build": "cd client && pnpm build",
+    "type-check": "cd client && pnpm type-check",
+    "start": "cd server && pnpm start",
+    "install:all": "pnpm install && cd client && pnpm install && cd ../server && pnpm install"
+  },
+  "workspaces": [
+    "client",
+    "server"
+  ]
+}

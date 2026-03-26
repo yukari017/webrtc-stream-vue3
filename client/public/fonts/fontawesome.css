@@ -1,0 +1,70 @@
+/*!
+ * Font Awesome Subset - 仅包含项目使用的图标
+ * 原始大小: 146.6 KB
+ * 子集化后: 2.7 KB (减少 98.1%)
+ */
+
+/* Solid 样式 - 仅包含24个使用的图标 */
+@font-face {
+  font-family: 'Font Awesome 6 Free';
+  font-style: normal;
+  font-weight: 900;
+  font-display: swap;
+  src: url('/fonts/fa-solid-900.woff2') format('woff2');
+}
+
+/* 基础样式 */
+.fa,
+.fas,
+.fa-solid {
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-font-smoothing: antialiased;
+  display: inline-block;
+  font-style: normal;
+  font-variant: normal;
+  text-rendering: auto;
+  line-height: 1;
+  font-family: 'Font Awesome 6 Free';
+  font-weight: 900;
+}
+
+/* 图标定义 */
+.fa-video::before { content: "\f03d"; }
+.fa-eye::before { content: "\f06e"; }
+.fa-desktop::before { content: "\f108"; }
+.fa-camera::before { content: "\f030"; }
+.fa-play::before { content: "\f04b"; }
+.fa-stop::before { content: "\f04d"; }
+.fa-copy::before { content: "\f0c5"; }
+.fa-random::before { content: "\f074"; }
+.fa-comments::before { content: "\f086"; }
+.fa-paper-plane::before { content: "\f1d8"; }
+.fa-user::before { content: "\f007"; }
+.fa-satellite-dish::before { content: "\f7c0"; }
+.fa-signal::before { content: "\f012"; }
+.fa-clock::before { content: "\f017"; }
+.fa-trash::before { content: "\f1f8"; }
+.fa-sync-alt::before { content: "\f2f1"; }
+.fa-code::before { content: "\f121"; }
+.fa-video-slash::before { content: "\f4e2"; }
+.fa-play-circle::before { content: "\f144"; }
+.fa-eye-slash::before { content: "\f070"; }
+.fa-sign-in-alt::before { content: "\f2f6"; }
+.fa-sign-out-alt::before { content: "\f2f5"; }
+.fa-door-open::before { content: "\f52b"; }
+.fa-id-card::before { content: "\f2c2"; }
+
+/* 图标尺寸 */
+.fa-2x { font-size: 2em; }
+.fa-3x { font-size: 3em; }
+.fa-4x { font-size: 4em; }
+
+/* 动画 */
+.fa-spin {
+  animation: fa-spin 2s linear infinite;
+}
+
+@keyframes fa-spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}

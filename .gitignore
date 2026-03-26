@@ -1,0 +1,60 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Production builds
+dist/
+build/
+server/public-dist/
+
+# Environment variables (keep examples)
+.env
+.env.local
+.env.*.local
+.env.production
+!.env.example
+!.env.development
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# OS generated files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*~
+
+# SSL certificates (DO NOT COMMIT)
+*.pem
+*.key
+*.crt
+*.pfx
+ssl/
+certs/
+
+# TypeScript
+*.tsbuildinfo
+
+# Testing
+coverage/
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# Lock files (optional - uncomment if you want to ignore)
+# pnpm-lock.yaml
+# yarn.lock
+# package-lock.json
