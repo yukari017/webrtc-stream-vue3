@@ -60,12 +60,23 @@ jobs:
           username: ${{ secrets.SERVER_USER }}
           key: ${{ secrets.SERVER_SSH_KEY }}
           script: |
+            # 加载用户环境
+            export PATH="$HOME/.local/share/pnpm:$PATH"
+            export PATH="$HOME/.npm-global/bin:$PATH"
+            
             cd ~/webrtc-stream
-            pnpm install --prod
-            cp ~/certs/cert.pem .
-            cp ~/certs/key.pem .
-            pm2 restart webrtc-signaling || pm2 start dist/index.js --name webrtc-signaling
-            pm2 save
+            
+            # 安装依赖（使用完整路径）
+            $HOME/.local/share/pnpm/pnpm install --prod
+            
+            # 复制证书（使用 sudo 解决权限问题）
+            sudo cp ~/certs/cert.pem .
+            sudo cp ~/certs/key.pem .
+            sudo chown $USER:$USER cert.pem key.pem
+            
+            # 启动/重启服务
+            $HOME/.npm-global/bin/pm2 restart webrtc-signaling || $HOME/.npm-global/bin/pm2 start dist/index.js --name webrtc-signaling
+            $HOME/.npm-global/bin/pm2 save
 
       - name: Cleanup
         run: rm -rf deploy
