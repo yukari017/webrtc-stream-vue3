@@ -1,0 +1,71 @@
+name: Deploy to Server
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'pnpm'
+
+      - name: Install dependencies
+        run: pnpm install
+
+      - name: Build frontend
+        run: cd client && pnpm build
+
+      - name: Build backend
+        run: cd server && pnpm build
+
+      - name: Prepare deployment package
+        run: |
+          mkdir -p deploy/dist
+          mkdir -p deploy/public-dist
+          cp -r server/dist/* deploy/dist/
+          cp -r server/public-dist/* deploy/public-dist/
+          cp server/package.json deploy/
+          cp server/pnpm-lock.yaml deploy/
+
+      - name: Deploy to server
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          source: "deploy/*"
+          target: "~/webrtc-stream"
+          strip_components: 1
+
+      - name: Install dependencies and restart service
+        uses: appleboy/ssh-action@v1.2.0
+        with:
+          host: ${{ secrets.SERVER_HOST }}
+          username: ${{ secrets.SERVER_USER }}
+          key: ${{ secrets.SERVER_SSH_KEY }}
+          script: |
+            cd ~/webrtc-stream
+            pnpm install --prod
+            cp ~/certs/cert.pem .
+            cp ~/certs/key.pem .
+            pm2 restart webrtc-signaling || pm2 start dist/index.js --name webrtc-signaling
+            pm2 save
+
+      - name: Cleanup
+        run: rm -rf deploy
