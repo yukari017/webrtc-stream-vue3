@@ -6,6 +6,9 @@ on:
       - main
   workflow_dispatch:
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   build-and-deploy:
     runs-on: ubuntu-latest
@@ -27,6 +30,13 @@ jobs:
 
       - name: Install dependencies
         run: pnpm install
+
+      - name: Create production env file
+        run: |
+          cat > client/.env.production << 'EOF'
+          VITE_SIGNALING_SERVER_URL=wss://watch.17c.fun:7777/ws
+          VITE_DEBUG=false
+          EOF
 
       - name: Build frontend
         run: pnpm build
