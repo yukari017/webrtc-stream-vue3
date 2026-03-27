@@ -1,6 +1,8 @@
 import { defineConfig, Plugin } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import { fileURLToPath, URL } from 'node:url'
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
 
 function removeInlineModulePreload(): Plugin {
   return {
@@ -24,6 +26,12 @@ export default defineConfig({
   },
   server: {
     port: 3000,
+    host: '0.0.0.0', // 允许局域网访问
+    https: {
+      // 使用 server 目录下的证书（与信令服务器共用）
+      key: readFileSync(resolve(__dirname, '../server/key.pem')),
+      cert: readFileSync(resolve(__dirname, '../server/cert.pem'))
+    },
     proxy: {
       '/ws': {
         target: 'wss://localhost:3001',

@@ -10,6 +10,7 @@ import {
   applyQualityPresetToBitrate,
   setVideoContentHint
 } from '@/utils/webrtc-utils'
+import { isMobile } from '@/utils/ui-utils'
 
 export function useMediaStream() {
   const store = useWebRTCStore()
@@ -118,12 +119,8 @@ export function useMediaStream() {
     streamError.value = null
     
     try {
-      const deviceToUse = deviceId || store.selectedAudioDeviceId
-      
-      if (!deviceToUse) {
-        store.updateStatus('未选择音频设备', 'warning')
-        return null
-      }
+      // 允许 deviceId 为空，getAudioStream 会使用默认设备
+      const deviceToUse = deviceId || store.selectedAudioDeviceId || null
       
       const stream = await getAudioStream(deviceToUse, {
         echoCancellation: false,
@@ -150,7 +147,23 @@ export function useMediaStream() {
   // 刷新音频设备列表
   const refreshAudioDevices = async (force = false): Promise<AudioDevice[]> => {
     try {
-      const devices = await getAudioDevices(force)
+      // 检测权限状态
+      const permissionStatus = await navigator.permissions.query({ name: 'microphone' as PermissionName })
+      console.log('麦克风权限状态:', permissionStatus.state)
+      
+      // 如果权限被拒绝，提示用户
+      if (permissionStatus.state === 'denied') {
+        store.updateStatus('麦克风权限已被拒绝，请在浏览器设置中允许麦克风权限', 'error')
+        return []
+      }
+      
+      // 需要请求权限的情况：
+      // 1. 移动端首次（强制请求才能获取真实设备 ID）
+      // 2. 权限状态为 prompt（尚未询问过）
+      const needPermission = isMobile() || permissionStatus.state === 'prompt'
+      
+      const devices = await getAudioDevices(force, needPermission || force)
+      
       const audioDevices: AudioDevice[] = devices.map(d => ({
         deviceId: d.deviceId,
         label: d.label,
@@ -159,10 +172,12 @@ export function useMediaStream() {
       store.setAudioDevices(audioDevices)
       
       if (audioDevices.length > 0) {
-        const firstRealDevice = audioDevices.find(d => d.label)
+        // 优先选择有真实名称的设备
+        const firstRealDevice = audioDevices.find(d => d.label && d.label !== '')
         if (firstRealDevice) {
           store.setSelectedAudioDevice(firstRealDevice.deviceId)
         } else if (!store.selectedAudioDeviceId) {
+          // 如果都没有名称，使用第一个
           store.setSelectedAudioDevice(audioDevices[0].deviceId)
         }
       }
