@@ -78,23 +78,23 @@
               <div class="perf-grid">
                 <div class="perf-item">
                   <div class="perf-label">比特率</div>
-                  <div class="perf-value">{{ performance.bitrate || '0' }} kbps</div>
+                  <div class="perf-value">{{ perfData.bitrate || '0' }} kbps</div>
                 </div>
                 <div class="perf-item">
                   <div class="perf-label">分辨率</div>
-                  <div class="perf-value">{{ performance.resolution || '0×0' }}</div>
+                  <div class="perf-value">{{ perfData.resolution || '0×0' }}</div>
                 </div>
                 <div class="perf-item">
                   <div class="perf-label">帧率</div>
-                  <div class="perf-value">{{ performance.framerate || '0' }} FPS</div>
+                  <div class="perf-value">{{ perfData.framerate || '0' }} FPS</div>
                 </div>
                 <div class="perf-item">
                   <div class="perf-label">延迟</div>
-                  <div class="perf-value">{{ performance.rtt || '0' }} ms</div>
+                  <div class="perf-value">{{ perfData.rtt || '0' }} ms</div>
                 </div>
                 <div class="perf-item">
                   <div class="perf-label">丢包率</div>
-                  <div class="perf-value">{{ performance.packetLoss || '0' }}%</div>
+                  <div class="perf-value">{{ perfData.packetLoss || '0' }}%</div>
                 </div>
               </div>
             </div>
@@ -349,7 +349,7 @@ const audioDevices = ref<AudioDevice[]>([])
 const isConnected = computed(() => store.isConnected)
 const isStreaming = computed(() => store.isStreaming)
 const localStream = computed(() => store.localStream)
-const performance = computed(() => store.performance)
+const perfData = computed(() => store.performance)
 
 const connectionStatusClass = computed(() => {
   if (store.isStreaming) return 'online'
