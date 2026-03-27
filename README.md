@@ -1,5 +1,7 @@
 # WebRTC Stream Vue3
 
+> A real-time audio/video communication system based on WebRTC, supporting screen sharing, camera streaming, and real-time chat.
+
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Vue 3](https://img.shields.io/badge/Vue-3.x-4FC08D?logo=vue.js)](https://vuejs.org/)
 [![TypeScript](https://img.shields.io/badge/TypeScript-6.x-3178C6?logo=typescript)](https://www.typescriptlang.org/)
@@ -102,18 +104,55 @@ pnpm dev:client
 
 ### 首次运行重要步骤 ⚠️
 
-信令服务器使用 HTTPS（自签名证书），首次运行需要让浏览器信任证书：
+前端开发服务器和信令服务器均使用 HTTPS（自签名证书），首次运行需要让浏览器信任证书：
 
 1. 服务启动后，浏览器访问 `https://localhost:3001`
 2. 看到"您的连接不是私密连接"警告，点击 **高级** → **继续前往 localhost（不安全）**
-3. 然后访问前端页面 `http://localhost:3000`
+3. 然后访问前端页面 `https://localhost:3000`，同样忽略证书警告
 
 > 如果跳过这一步，WebSocket 连接会失败，控制台报错 `ERR_CERT_AUTHORITY_INVALID`
 
 ### 访问应用
 
-- 推流端: http://localhost:3000/
-- 观看端: http://localhost:3000/viewer
+- 推流端: https://localhost:3000/
+- 观看端: https://localhost:3000/viewer
+
+### 局域网测试（移动端）
+
+> ⚠️ **重要**：WebRTC 的 `getUserMedia` API 在非 HTTPS 环境下只能用于 `localhost`。
+> 前端开发服务器已配置 HTTPS，与信令服务器共用证书。
+
+如需使用局域网真实移动设备测试：
+
+1. **查看本机局域网 IP**
+   ```bash
+   ipconfig  # Windows
+   # 找到 IPv4 地址，如 192.168.1.9
+   ```
+
+2. **配置环境变量**
+   
+   创建 `client/.env.development.local`（优先级高于 `.env.development`，不会提交到 Git）：
+   ```bash
+   VITE_SIGNALING_SERVER_URL=wss://192.168.1.9:3001
+   VITE_DEBUG=true
+   ```
+
+3. **重启前端服务**
+   ```bash
+   pnpm dev:client
+   ```
+
+4. **访问应用**
+   
+   | 环境 | 地址 |
+   |------|------|
+   | 本地开发 | `https://localhost:3000` |
+   | 局域网/移动端 | `https://192.168.1.9:3000` |
+   
+   > 首次访问需要忽略证书警告
+
+5. **测试完成后**：删除 `.env.development.local` 恢复本地开发配置
 
 ### 生产构建
 
@@ -324,9 +363,13 @@ server {
 
 ## 🤝 贡献
 
-欢迎提交 Issue 和 Pull Request！
+欢迎提交 Issue 和 Pull Request！详细的贡献指南请查看 [CONTRIBUTING.md](./CONTRIBUTING.md)。
 
 ### 提交规范
+
+采用 Conventional Commits 规范，格式为 `<type>(<scope>): <description>`。
+
+#### 类型（type）
 
 | 类型 | 说明 |
 |------|------|
@@ -334,11 +377,49 @@ server {
 | `fix` | 修复 bug |
 | `docs` | 文档更新 |
 | `style` | 代码格式（不影响功能） |
-| `refactor` | 重构 |
+| `refactor` | 重构（既非新功能也非 bug 修复） |
+| `perf` | 性能优化 |
 | `test` | 测试相关 |
 | `chore` | 构建/工具变动 |
 
-示例：`feat: 添加深色模式支持`
+#### 作用域（scope）
+
+表示本次提交影响的模块，根据改动位置选择：
+
+| scope | 说明 |
+|-------|------|
+| `ui` | 通用 UI 组件 / 视图层 |
+| `chat` | 聊天相关组件和逻辑 |
+| `webrtc` | WebRTC 连接、推流、观看核心逻辑 |
+| `store` | Pinia 状态管理 |
+| `composables` | Composables（组合式函数） |
+| `utils` | 工具函数 |
+| `server` | 信令服务器 |
+| `config` | 配置文件（vite、tsconfig 等） |
+| `deps` | 依赖升级 / 变更 |
+| `ci` | CI/CD 配置 |
+
+> 如果改动涉及多个 scope，选择影响最大的一个；如果无法归类，可以省略 scope。
+
+#### 示例
+
+```bash
+feat(ui): 添加深色模式支持
+fix(webrtc): 修复断线重连时 ICE 候选未刷新的问题
+perf(store): 优化状态订阅避免不必要的重渲染
+docs(readme): 补充部署文档
+chore(deps): 升级 Vue 至 3.5
+```
+
+#### 分支规范
+
+| 分支 | 用途 |
+|------|------|
+| `main` | 生产分支，仅通过 PR 合入，保持稳定可发布状态 |
+| `develop` | 开发分支，所有日常开发在此分支进行 |
+| `feature/*` | 功能分支，从 `develop` 创建，完成后 PR 回 `develop` |
+| `fix/*` | 修复分支，从 `develop` 创建，完成后 PR 回 `develop` |
+| `hotfix/*` | 紧急修复，从 `main` 创建，完成后同时 PR 到 `main` 和 `develop` |
 
 ---
 
