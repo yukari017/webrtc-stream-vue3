@@ -331,6 +331,11 @@ const showPerfPanel = ref(true)
 const isGettingStream = ref(false)
 const isMobileDevice = isMobile()
 
+// 性能监控
+let performanceTimer: ReturnType<typeof setInterval> | null = null
+let prevBytesSent = 0
+let prevTimestamp = 0
+
 // 摄像头列表
 const cameras = ref<MediaDeviceInfo[]>([])
 const selectedCameraId = ref('')
@@ -434,6 +439,7 @@ const startStreaming = async () => {
     const success = await webrtc.startStreaming(roomId.value, type)
     if (success) {
       store.updateStatus('推流已开始', 'success')
+      startPerformanceMonitoring()
     }
   } catch (error) {
     const err = error as Error
@@ -442,25 +448,22 @@ const startStreaming = async () => {
 }
 
 const stopAll = () => {
-  // 如果在推流，先停止推流
+  stopPerformanceMonitoring()
+  
   if (store.isStreaming) {
     webrtc.stopStreaming()
   }
   
-  // 停止所有媒体流
   media.stopAllStreams()
   
-  // 清理视频元素
   if (localVideo.value) {
     localVideo.value.srcObject = null
   }
   
-  // 清理状态
   store.cleanup()
   currentStreamType.value = ''
   sessionStorage.removeItem('streamerRoomId')
   
-  // 如果在推流状态，重新生成房间号
   if (store.isStreaming) {
     generateRoomIdHandler()
   }
@@ -468,6 +471,80 @@ const stopAll = () => {
 
 const togglePerfPanel = () => {
   showPerfPanel.value = !showPerfPanel.value
+}
+
+// 更新性能监控数据（推流端使用 outbound-rtp）
+const updatePerformanceStats = async () => {
+  if (!store.peerConnection) return
+  
+  try {
+    const stats = await store.peerConnection.getStats()
+    let bitrate = 0
+    let framerate = 0
+    let rtt = 0
+    
+    stats.forEach(report => {
+      if (report.type === 'outbound-rtp' && report.kind === 'video') {
+        if (report.bytesSent && report.timestamp) {
+          const bytesDelta = report.bytesSent - prevBytesSent
+          const timeDelta = (report.timestamp - prevTimestamp) / 1000
+          
+          if (timeDelta > 0 && bytesDelta > 0) {
+            bitrate = Math.round((bytesDelta * 8) / timeDelta / 1000)
+          }
+          
+          prevBytesSent = report.bytesSent
+          prevTimestamp = report.timestamp
+        }
+        
+        if (report.framesPerSecond) {
+          framerate = report.framesPerSecond
+        }
+      }
+      
+      if (report.type === 'candidate-pair' && report.nominated && report.currentRoundTripTime) {
+        rtt = Math.round(report.currentRoundTripTime * 1000)
+      }
+    })
+    
+    const currentStream = store.screenStream || store.localStream
+    let resolution = '0×0'
+    if (currentStream) {
+      const videoTrack = currentStream.getVideoTracks()[0]
+      if (videoTrack) {
+        const settings = videoTrack.getSettings()
+        if (settings.width && settings.height) {
+          resolution = `${settings.width}×${settings.height}`
+        }
+      }
+    }
+    
+    store.updatePerformance({
+      bitrate: bitrate || 0,
+      framerate: framerate || 0,
+      resolution,
+      packetLoss: 0,
+      rtt: rtt || 0
+    })
+  } catch (error) {
+    console.error('获取推流端性能统计失败:', error)
+  }
+}
+
+// 启动性能监控
+const startPerformanceMonitoring = () => {
+  if (performanceTimer) clearInterval(performanceTimer)
+  prevBytesSent = 0
+  prevTimestamp = 0
+  performanceTimer = setInterval(updatePerformanceStats, 1000)
+}
+
+// 停止性能监控
+const stopPerformanceMonitoring = () => {
+  if (performanceTimer) {
+    clearInterval(performanceTimer)
+    performanceTimer = null
+  }
 }
 
 const refreshAudioDevices = async () => {
@@ -571,6 +648,7 @@ onMounted(async () => {
 
 onUnmounted(() => {
   window.removeEventListener('pageshow', handlePageShow)
+  stopPerformanceMonitoring()
   webrtc.stopStreaming()
   media.stopAllStreams()
 })
