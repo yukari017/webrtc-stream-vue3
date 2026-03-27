@@ -1,0 +1,173 @@
+/* 移动端公共样式 - 继承 variables.css 的主题变量 */
+
+/* 基础布局 */
+.mobile-container {
+  position: fixed;
+  top: 56px;
+  left: 0;
+  right: 0;
+  bottom: 56px;
+  overflow-y: auto;
+  padding: var(--spacing-sm);
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.mobile-container::-webkit-scrollbar {
+  display: none;
+}
+
+/* 卡片样式 */
+.mobile-card {
+  background: var(--bg-primary);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+  padding: var(--spacing-md);
+  margin-bottom: var(--spacing-sm);
+}
+
+.mobile-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-sm);
+  padding-bottom: var(--spacing-xs);
+  border-bottom: 1px solid var(--border-color);
+}
+
+.mobile-card-title {
+  margin: 0;
+  font-size: var(--font-lg);
+  font-weight: 600;
+  color: var(--text-primary);
+}
+
+/* 按钮样式 */
+.mobile-btn {
+  padding: 0.625rem 0.75rem;
+  border-radius: var(--radius-md);
+  border: none;
+  cursor: pointer;
+  font-size: var(--font-md);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-sm);
+  transition: all 0.15s ease-out;
+  font-weight: 500;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  user-select: none;
+}
+
+.mobile-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.mobile-btn-sm {
+  padding: var(--spacing-sm) var(--spacing-md);
+  font-size: var(--font-sm);
+}
+
+.mobile-btn-primary {
+  background: var(--primary);
+  color: white;
+}
+
+.mobile-btn-secondary {
+  background: var(--secondary);
+  color: white;
+}
+
+.mobile-btn-success {
+  background: var(--primary);
+  color: white;
+}
+
+.mobile-btn-danger {
+  background: var(--primary);
+  color: white;
+}
+
+/* 桌面端 hover 效果 */
+@media (hover: hover) {
+  .mobile-btn-primary:hover:not(:disabled),
+  .mobile-btn-success:hover:not(:disabled),
+  .mobile-btn-danger:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(251, 114, 153, 0.4);
+  }
+
+  .mobile-btn-secondary:hover:not(:disabled) {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(96, 165, 250, 0.4);
+  }
+}
+
+/* 移动端 active 点击效果 */
+@media (hover: none) {
+  .mobile-btn:active:not(:disabled) {
+    transform: scale(0.96);
+    opacity: 0.85;
+    transition: none;
+  }
+}
+
+/* 表单样式 */
+.mobile-form-group {
+  margin-bottom: var(--spacing-sm);
+}
+
+.mobile-form-label {
+  display: block;
+  margin-bottom: var(--spacing-sm);
+  font-weight: 500;
+  font-size: var(--font-md);
+  color: var(--text-primary);
+}
+
+.mobile-form-control {
+  width: 100%;
+  padding: 0.625rem;
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  font-size: var(--font-md);
+  background: var(--bg-primary);
+  color: var(--text-primary);
+}
+
+.mobile-input-group {
+  display: flex;
+  gap: var(--spacing-sm);
+}
+
+.mobile-input-group .mobile-form-control {
+  flex: 1;
+}
+
+/* 文本辅助类 */
+.mobile-text-sm {
+  font-size: var(--font-sm);
+}
+
+.mobile-text-muted {
+  color: var(--text-muted);
+}
+
+/* 间距辅助类 */
+.mobile-mt-1 {
+  margin-top: var(--spacing-sm);
+}
+
+.mobile-mb-1 {
+  margin-bottom: var(--spacing-sm);
+}
+
+.mobile-flex-1 {
+  flex: 1;
+}
+
+.mobile-w-100 {
+  width: 100%;
+}

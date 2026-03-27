@@ -1,9 +1,19 @@
 // WebRTC 信令服务器配置
-// 优先使用环境变量，开发环境默认 localhost，生产环境必须配置
+// 优先使用环境变量，开发环境默认使用当前页面的主机地址
+
+function getDefaultSignalingUrl(): string {
+  if (typeof window === 'undefined') return ''
+  
+  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+  const host = window.location.hostname || 'localhost'
+  const port = import.meta.env.DEV ? '3001' : window.location.port || '3001'
+  
+  return `${protocol}//${host}:${port}`
+}
 
 export const SIGNALING_SERVER_URL: string = 
   import.meta.env.VITE_SIGNALING_SERVER_URL || 
-  (import.meta.env.DEV ? 'wss://localhost:3001' : '')
+  (import.meta.env.DEV ? getDefaultSignalingUrl() : '')
 
 // 调试模式
 export const DEBUG: boolean = import.meta.env.VITE_DEBUG === 'true' || import.meta.env.DEV || false

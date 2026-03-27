@@ -1,5 +1,9 @@
 <template>
-  <div class="viewer-page">
+  <!-- 移动端：使用 Tab 布局 -->
+  <ViewerMobileLayout v-if="isMobileDevice" />
+  
+  <!-- 桌面端：保持原有布局 -->
+  <div class="viewer-page" v-else>
     <div class="page-header">
       <h2><i class="fas fa-eye"></i> 观看端</h2>
       <p class="subtitle">观看推流端的实时视频流</p>
@@ -265,6 +269,10 @@ import { useWebRTC } from '@/composables/useWebRTC'
 import { useChat } from '@/composables/useChat'
 import ChatPanel from '@/components/Chat/ChatPanel.vue'
 import StatusLog from '@/components/common/StatusLog.vue'
+import ViewerMobileLayout from '@/components/mobile/ViewerMobileLayout.vue'
+import { isMobile } from '@/utils/ui-utils'
+
+const isMobileDevice = isMobile()
 
 const store = useWebRTCStore()
 const webrtc = useWebRTC()
@@ -1077,16 +1085,16 @@ body.dark-theme .log-empty {
 
 /* 淡绿色 - 用于状态指示 */
 .btn-info {
-  background: linear-gradient(135deg, #86efac 0%, #bbf7d0 100%);
-  color: #14532d;
+  background: #60a5fa;
+  color: white;
   border: none;
-  box-shadow: 0 2px 8px rgba(134, 239, 172, 0.3);
+  box-shadow: 0 2px 8px rgba(96, 165, 250, 0.3);
   font-weight: 500;
 }
 
 .btn-info:hover:not(:disabled) {
-  background: linear-gradient(135deg, #bbf7d0 0%, #dcfce7 100%);
-  box-shadow: 0 4px 12px rgba(134, 239, 172, 0.4);
+  background: #93c5fd;
+  box-shadow: 0 4px 12px rgba(96, 165, 250, 0.4);
   transform: translateY(-1px);
 }
 

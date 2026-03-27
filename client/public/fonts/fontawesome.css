@@ -4,7 +4,7 @@
  * 子集化后: 2.7 KB (减少 98.1%)
  */
 
-/* Solid 样式 - 仅包含24个使用的图标 */
+/* Solid 样式 - 仅包含27个使用的图标 */
 @font-face {
   font-family: 'Font Awesome 6 Free';
   font-style: normal;
@@ -53,6 +53,9 @@
 .fa-sign-out-alt::before { content: "\f2f5"; }
 .fa-door-open::before { content: "\f52b"; }
 .fa-id-card::before { content: "\f2c2"; }
+.fa-cog::before { content: "\f013"; }
+.fa-comment::before { content: "\f075"; }
+.fa-list-alt::before { content: "\f022"; }
 
 /* 图标尺寸 */
 .fa-2x { font-size: 2em; }
