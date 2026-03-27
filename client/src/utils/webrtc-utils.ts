@@ -147,11 +147,37 @@ export function applyQualityPresetToBitrate(baseBitrateKbps: number, preset?: st
 }
 
 /**
- * 获取音频设备列表
+ * 请求音频权限（移动端必须先获取权限才能拿到真实的 deviceId）
  */
-export async function getAudioDevices(force = false): Promise<MediaDeviceInfo[]> {
+export async function requestAudioPermission(): Promise<MediaStream | null> {
+  try {
+    // 先尝试用最简单的约束获取权限
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+    console.log('音频权限获取成功')
+    return stream
+  } catch (error) {
+    console.warn('获取音频权限失败:', error)
+    return null
+  }
+}
+
+/**
+ * 获取音频设备列表
+ * @param force 强制刷新缓存
+ * @param ensurePermission 是否先请求权限（移动端需要）
+ */
+export async function getAudioDevices(force = false, ensurePermission = false): Promise<MediaDeviceInfo[]> {
   const AUDIO_DEVICE_CACHE_MS = 5000
   const now = Date.now()
+  
+  // 如果需要确保权限，先请求一次
+  if (ensurePermission) {
+    const permStream = await requestAudioPermission()
+    if (permStream) {
+      // 立即释放权限流
+      permStream.getTracks().forEach(t => t.stop())
+    }
+  }
   
   if (!force && deviceCache.devices.length && (now - deviceCache.timestamp < AUDIO_DEVICE_CACHE_MS)) {
     return deviceCache.devices
@@ -160,10 +186,15 @@ export async function getAudioDevices(force = false): Promise<MediaDeviceInfo[]>
   const devices = await navigator.mediaDevices.enumerateDevices()
   const audioDevices = devices.filter(d => d.kind === 'audioinput')
   
-  deviceCache.devices = audioDevices
+  // 过滤掉无效的设备（移动端在未授权时可能返回 deviceId 为空或 default）
+  const validDevices = audioDevices.filter(d => d.deviceId && d.deviceId !== '')
+  
+  deviceCache.devices = validDevices.length > 0 ? validDevices : audioDevices
   deviceCache.timestamp = now
   
-  return audioDevices
+  console.log(`发现 ${audioDevices.length} 个音频设备，有效 ${validDevices.length} 个`)
+  
+  return deviceCache.devices
 }
 
 /**
@@ -260,12 +291,10 @@ export async function getScreenStream(options: ScreenStreamOptions = {}): Promis
 
 /**
  * 获取音频流
+ * @param deviceId 设备 ID，如果为空则使用默认设备
+ * @param options 音频约束选项
  */
-export async function getAudioStream(deviceId: string, options: AudioStreamOptions = {}): Promise<MediaStream | null> {
-  if (!deviceId) {
-    return null
-  }
-
+export async function getAudioStream(deviceId: string | null, options: AudioStreamOptions = {}): Promise<MediaStream | null> {
   const {
     echoCancellation = false,
     noiseSuppression = false,
@@ -274,22 +303,45 @@ export async function getAudioStream(deviceId: string, options: AudioStreamOptio
     channelCount = 2
   } = options
 
-  try {
-    const stream = await navigator.mediaDevices.getUserMedia({
-      audio: {
-        deviceId: { exact: deviceId },
-        echoCancellation,
-        noiseSuppression,
-        autoGainControl,
-        sampleRate,
-        channelCount
-      }
-    })
+  // 构建音频约束
+  const audioConstraints: MediaTrackConstraints = {
+    echoCancellation,
+    noiseSuppression,
+    autoGainControl,
+    sampleRate,
+    channelCount
+  }
 
+  // 如果有有效的 deviceId，使用 exact 约束
+  if (deviceId && deviceId !== '' && deviceId !== 'default') {
+    audioConstraints.deviceId = { exact: deviceId }
+  }
+
+  try {
+    console.log('尝试获取音频流，约束:', audioConstraints)
+    const stream = await navigator.mediaDevices.getUserMedia({
+      audio: audioConstraints
+    })
+    console.log('音频流获取成功:', stream.getAudioTracks()[0]?.label)
     return stream
   } catch (error) {
-    console.warn('获取音频流失败:', error)
-    return null
+    console.warn('获取音频流失败（精确匹配），尝试使用默认设备:', error)
+    
+    // Fallback: 使用默认设备
+    try {
+      const fallbackStream = await navigator.mediaDevices.getUserMedia({
+        audio: {
+          echoCancellation,
+          noiseSuppression,
+          autoGainControl
+        }
+      })
+      console.log('使用默认音频设备成功:', fallbackStream.getAudioTracks()[0]?.label)
+      return fallbackStream
+    } catch (fallbackError) {
+      console.error('获取音频流最终失败:', fallbackError)
+      return null
+    }
   }
 }
 
