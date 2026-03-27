@@ -82,8 +82,16 @@ body.dark-theme .card-title {
   font-size: 0.875rem;
   display: inline-flex;
   align-items: center;
+  justify-content: center;
   gap: 0.5rem;
   transition: all 0.2s;
+  line-height: 1;
+}
+
+.btn i {
+  line-height: 1;
+  display: inline-block;
+  vertical-align: middle;
 }
 
 .btn:disabled {
@@ -92,7 +100,7 @@ body.dark-theme .card-title {
 }
 
 .btn-sm {
-  padding: 0.25rem 0.5rem;
+  padding: 0.375rem 0.75rem;
   font-size: 0.75rem;
 }
 
