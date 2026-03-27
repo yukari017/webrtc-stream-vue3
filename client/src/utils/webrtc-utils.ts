@@ -238,7 +238,8 @@ export async function getScreenStream(options: ScreenStreamOptions = {}): Promis
       // 'window': 单个窗口
       // 'browser': 浏览器标签页
       // 'any': 所有类型（移动端必须用 any，否则 Android 部分设备报错）
-      displaySurface: 'any',
+      // 桌面端尝试默认选择整个屏幕，移动端保持 any 兼容性
+      displaySurface: isMobile() ? 'any' : 'monitor',
       width: usedResolution.width,
       height: usedResolution.height,
       frameRate: { ideal: usedFrameRate, max: usedFrameRate }

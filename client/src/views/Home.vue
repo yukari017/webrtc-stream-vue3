@@ -1,5 +1,9 @@
 <template>
-  <div class="home-page">
+  <!-- 移动端：使用 Tab 布局 -->
+  <MobileLayout v-if="isMobileDevice" />
+  
+  <!-- 桌面端：保持原有布局 -->
+  <div class="home-page" v-else>
     <div class="page-header">
       <h2><i class="fas fa-video"></i> 推流端</h2>
       <p class="subtitle" v-if="!isMobileDevice">将您的屏幕或摄像头视频流推送到观看端</p>
@@ -312,6 +316,7 @@ import type { AudioDevice, WebRTCSettings } from '@/types/webrtc'
 import ChatPanel from '@/components/Chat/ChatPanel.vue'
 import StatusLog from '@/components/common/StatusLog.vue'
 import CameraSelector from '@/components/common/CameraSelector.vue'
+import MobileLayout from '@/components/mobile/MobileLayout.vue'
 
 const store = useWebRTCStore()
 const webrtc = useWebRTC()
@@ -704,15 +709,15 @@ onUnmounted(() => {
 }
 
 .stream-controls .btn-success {
-  background: linear-gradient(135deg, #86efac 0%, #bbf7d0 100%);
-  color: #14532d;
+  background: #fb7299;
+  color: white;
   border: none;
 }
 
 .stream-controls .btn-success:hover {
-  background: linear-gradient(135deg, #bbf7d0 0%, #86efac 100%);
+  background: #fc8bab;
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(134, 239, 172, 0.4);
+  box-shadow: 0 4px 12px rgba(251, 114, 153, 0.4);
 }
 
 .flex-1 {
@@ -739,15 +744,15 @@ onUnmounted(() => {
 }
 
 .connection-controls .btn-success {
-  background: linear-gradient(135deg, #86efac 0%, #bbf7d0 100%);
-  color: #14532d;
+  background: #fb7299;
+  color: white;
   border: none;
 }
 
 .connection-controls .btn-success:hover {
-  background: linear-gradient(135deg, #bbf7d0 0%, #86efac 100%);
+  background: #fc8bab;
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(134, 239, 172, 0.4);
+  box-shadow: 0 4px 12px rgba(251, 114, 153, 0.4);
 }
 
 .connection-controls .btn-danger {

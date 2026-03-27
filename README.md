@@ -21,13 +21,13 @@
 
 ## 🛠️ 技术栈
 
-| 类别 | 技术 |
-|------|------|
-| 前端框架 | Vue 3 |
-| 构建工具 | Vite 5 |
-| 语言 | TypeScript |
-| 状态管理 | Pinia |
-| 实时通信 | WebRTC |
+| 类别     | 技术              |
+| -------- | ----------------- |
+| 前端框架 | Vue 3             |
+| 构建工具 | Vite 5            |
+| 语言     | TypeScript        |
+| 状态管理 | Pinia             |
+| 实时通信 | WebRTC            |
 | 信令服务 | WebSocket + HTTPS |
 
 ## 📁 项目结构
@@ -78,6 +78,7 @@ webrtc-stream-vue3/
 ## 🚀 快速开始
 
 ### 环境要求
+
 - Node.js 16+
 - pnpm（推荐）或 npm
 
@@ -91,6 +92,24 @@ pnpm install
 cd client && pnpm install
 cd ../server && pnpm install
 ```
+
+### 生成 SSL 证书（开发环境）
+
+信令服务器需要 SSL 证书，开发环境可生成自签名证书：
+
+```bash
+cd server
+
+# 使用 OpenSSL 生成（需要安装 OpenSSL）
+openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 365 -nodes
+
+# 或使用 Windows PowerShell
+$cert = New-SelfSignedCertificate -DnsName "localhost" -CertStoreLocation "Cert:\LocalMachine\My"
+$pwd = ConvertTo-SecureString -String "password" -Force -AsPlainText
+Export-PfxCertificate -Cert $cert -FilePath cert.pfx -Password $pwd
+```
+
+将生成的 `key.pem` 和 `cert.pem` 放在 `server/` 目录下。
 
 ### 启动服务
 
@@ -125,31 +144,34 @@ pnpm dev:client
 如需使用局域网真实移动设备测试：
 
 1. **查看本机局域网 IP**
+
    ```bash
    ipconfig  # Windows
    # 找到 IPv4 地址，如 192.168.1.9
    ```
 
 2. **配置环境变量**
-   
+
    创建 `client/.env.development.local`（优先级高于 `.env.development`，不会提交到 Git）：
+
    ```bash
    VITE_SIGNALING_SERVER_URL=wss://192.168.1.9:3001
    VITE_DEBUG=true
    ```
 
 3. **重启前端服务**
+
    ```bash
    pnpm dev:client
    ```
 
 4. **访问应用**
-   
-   | 环境 | 地址 |
-   |------|------|
-   | 本地开发 | `https://localhost:3000` |
+
+   | 环境          | 地址                       |
+   | ------------- | -------------------------- |
+   | 本地开发      | `https://localhost:3000`   |
    | 局域网/移动端 | `https://192.168.1.9:3000` |
-   
+
    > 首次访问需要忽略证书警告
 
 5. **测试完成后**：删除 `.env.development.local` 恢复本地开发配置
@@ -186,62 +208,46 @@ VITE_SIGNALING_SERVER_URL=wss://your-domain.com:3001
 
 ### 默认推流设置
 
-| 参数 | 默认值 |
-|------|--------|
-| 帧率 | 60 FPS |
-| 分辨率 | 1440p (2560x1440) |
-| 画质 | ultra |
-| 共享音频 | 开启 |
-| 共享光标 | 开启 |
+| 参数     | 默认值            |
+| -------- | ----------------- |
+| 帧率     | 60 FPS            |
+| 分辨率   | 1440p (2560x1440) |
+| 画质     | ultra             |
+| 共享音频 | 开启              |
+| 共享光标 | 开启              |
 
 ### 帧率选项
+
 `30` `60` `120` `144` FPS
 
 ### 分辨率选项
+
 `720p` `1080p` `1440p` `4K`
 
 ## 📊 性能监控
 
-| 指标 | 说明 |
-|------|------|
+| 指标   | 说明                |
+| ------ | ------------------- |
 | 比特率 | 视频传输速率 (kbps) |
-| 分辨率 | 当前视频分辨率 |
-| 帧率 | 当前 FPS |
-| 延迟 | 往返延迟 (ms) |
-| 丢包率 | 丢包百分比 |
+| 分辨率 | 当前视频分辨率      |
+| 帧率   | 当前 FPS            |
+| 延迟   | 往返延迟 (ms)       |
+| 丢包率 | 丢包百分比          |
 
 ## 🌐 浏览器兼容性
 
-| 浏览器 | 版本 |
-|--------|------|
-| Chrome | 80+ ✅ |
+| 浏览器  | 版本   |
+| ------- | ------ |
+| Chrome  | 80+ ✅ |
 | Firefox | 75+ ✅ |
-| Safari | 14+ ✅ |
-| Edge | 80+ ✅ |
+| Safari  | 14+ ✅ |
+| Edge    | 80+ ✅ |
 
 ## 🔒 安全说明
 
 - 所有通信基于 WebRTC P2P 连接
 - 信令服务器仅交换连接信息
 - 支持 HTTPS + DTLS 加密传输
-
-### 生成 SSL 证书（开发环境）
-
-信令服务器需要 SSL 证书，开发环境可生成自签名证书：
-
-```bash
-cd server
-
-# 使用 OpenSSL 生成（需要安装 OpenSSL）
-openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 365 -nodes
-
-# 或使用 Windows PowerShell
-$cert = New-SelfSignedCertificate -DnsName "localhost" -CertStoreLocation "Cert:\LocalMachine\My"
-$pwd = ConvertTo-SecureString -String "password" -Force -AsPlainText
-Export-PfxCertificate -Cert $cert -FilePath cert.pfx -Password $pwd
-```
-
-将生成的 `key.pem` 和 `cert.pem` 放在 `server/` 目录下。
 
 ## 🚀 生产环境部署
 
@@ -308,6 +314,7 @@ server {
 ### 部署步骤
 
 1. **配置环境变量**
+
    ```bash
    # 创建 client/.env.production
    VITE_SIGNALING_SERVER_URL=wss://your-domain.com/ws
@@ -315,12 +322,15 @@ server {
    ```
 
 2. **构建前端**
+
    ```bash
    cd client && pnpm build
    ```
+
    构建产物在 `server/public-dist/`
 
 3. **构建并启动后端服务**
+
    ```bash
    cd server
    pnpm install
@@ -337,17 +347,17 @@ server {
 1. **Fork 本仓库**
 
 2. **配置 GitHub Secrets**
-   
+
    在仓库设置中添加以下 Secrets：
-   
-   | Secret 名称 | 说明 |
-   |------------|------|
-   | `SERVER_HOST` | 服务器地址（如 `your-domain.com`） |
-   | `SERVER_USER` | SSH 用户名 |
-   | `SERVER_SSH_KEY` | SSH 私钥内容 |
+
+   | Secret 名称      | 说明                               |
+   | ---------------- | ---------------------------------- |
+   | `SERVER_HOST`    | 服务器地址（如 `your-domain.com`） |
+   | `SERVER_USER`    | SSH 用户名                         |
+   | `SERVER_SSH_KEY` | SSH 私钥内容                       |
 
 3. **修改 deploy.yml 中的配置**
-   
+
    编辑 `.github/workflows/deploy.yml`，修改：
    - 第 37 行：`VITE_SIGNALING_SERVER_URL=wss://your-domain.com:7777/ws`
    - 第 69 行：服务器上的 PATH 路径
@@ -371,33 +381,33 @@ server {
 
 #### 类型（type）
 
-| 类型 | 说明 |
-|------|------|
-| `feat` | 新功能 |
-| `fix` | 修复 bug |
-| `docs` | 文档更新 |
-| `style` | 代码格式（不影响功能） |
+| 类型       | 说明                            |
+| ---------- | ------------------------------- |
+| `feat`     | 新功能                          |
+| `fix`      | 修复 bug                        |
+| `docs`     | 文档更新                        |
+| `style`    | 代码格式（不影响功能）          |
 | `refactor` | 重构（既非新功能也非 bug 修复） |
-| `perf` | 性能优化 |
-| `test` | 测试相关 |
-| `chore` | 构建/工具变动 |
+| `perf`     | 性能优化                        |
+| `test`     | 测试相关                        |
+| `chore`    | 构建/工具变动                   |
 
 #### 作用域（scope）
 
 表示本次提交影响的模块，根据改动位置选择：
 
-| scope | 说明 |
-|-------|------|
-| `ui` | 通用 UI 组件 / 视图层 |
-| `chat` | 聊天相关组件和逻辑 |
-| `webrtc` | WebRTC 连接、推流、观看核心逻辑 |
-| `store` | Pinia 状态管理 |
-| `composables` | Composables（组合式函数） |
-| `utils` | 工具函数 |
-| `server` | 信令服务器 |
-| `config` | 配置文件（vite、tsconfig 等） |
-| `deps` | 依赖升级 / 变更 |
-| `ci` | CI/CD 配置 |
+| scope         | 说明                            |
+| ------------- | ------------------------------- |
+| `ui`          | 通用 UI 组件 / 视图层           |
+| `chat`        | 聊天相关组件和逻辑              |
+| `webrtc`      | WebRTC 连接、推流、观看核心逻辑 |
+| `store`       | Pinia 状态管理                  |
+| `composables` | Composables（组合式函数）       |
+| `utils`       | 工具函数                        |
+| `server`      | 信令服务器                      |
+| `config`      | 配置文件（vite、tsconfig 等）   |
+| `deps`        | 依赖升级 / 变更                 |
+| `ci`          | CI/CD 配置                      |
 
 > 如果改动涉及多个 scope，选择影响最大的一个；如果无法归类，可以省略 scope。
 
@@ -413,13 +423,13 @@ chore(deps): 升级 Vue 至 3.5
 
 #### 分支规范
 
-| 分支 | 用途 |
-|------|------|
-| `main` | 生产分支，仅通过 PR 合入，保持稳定可发布状态 |
-| `develop` | 开发分支，所有日常开发在此分支进行 |
-| `feature/*` | 功能分支，从 `develop` 创建，完成后 PR 回 `develop` |
-| `fix/*` | 修复分支，从 `develop` 创建，完成后 PR 回 `develop` |
-| `hotfix/*` | 紧急修复，从 `main` 创建，完成后同时 PR 到 `main` 和 `develop` |
+| 分支        | 用途                                                           |
+| ----------- | -------------------------------------------------------------- |
+| `main`      | 生产分支，仅通过 PR 合入，保持稳定可发布状态                   |
+| `develop`   | 开发分支，所有日常开发在此分支进行                             |
+| `feature/*` | 功能分支，从 `develop` 创建，完成后 PR 回 `develop`            |
+| `fix/*`     | 修复分支，从 `develop` 创建，完成后 PR 回 `develop`            |
+| `hotfix/*`  | 紧急修复，从 `main` 创建，完成后同时 PR 到 `main` 和 `develop` |
 
 ---
 

@@ -74,14 +74,14 @@ body.dark-theme .app-footer {
 }
 
 .btn-success {
-  background: linear-gradient(135deg, #86efac 0%, #bbf7d0 100%);
-  color: #14532d;
+  background: #fb7299;
+  color: white;
 }
 
 .btn-success:hover {
-  background: linear-gradient(135deg, #bbf7d0 0%, #86efac 100%);
+  background: #fc8bab;
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(134, 239, 172, 0.4);
+  box-shadow: 0 4px 12px rgba(251, 114, 153, 0.4);
 }
 
 .btn-danger {

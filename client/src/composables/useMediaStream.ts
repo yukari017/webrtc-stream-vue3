@@ -87,16 +87,26 @@ export function useMediaStream() {
       const { frameRate, resolution } = store.settings
       const resolutionConstraints = getResolutionConstraints(resolution)
       
+      const defaultVideoConstraints = {
+        width: resolutionConstraints.width,
+        height: resolutionConstraints.height,
+        frameRate: { ideal: frameRate, max: frameRate }
+      }
+      
       const defaultConstraints: MediaStreamConstraints = {
-        video: {
-          width: resolutionConstraints.width,
-          height: resolutionConstraints.height,
-          frameRate: { ideal: frameRate, max: frameRate }
-        },
+        video: defaultVideoConstraints,
         audio: false
       }
       
-      const finalConstraints = { ...defaultConstraints, ...constraints }
+      const constraintsVideo = typeof constraints.video === 'object' ? constraints.video : {}
+      const finalConstraints: MediaStreamConstraints = {
+        ...defaultConstraints,
+        ...constraints,
+        video: {
+          ...defaultVideoConstraints,
+          ...constraintsVideo
+        }
+      }
       
       const stream = await navigator.mediaDevices.getUserMedia(finalConstraints)
       

@@ -43,7 +43,8 @@ webrtc-stream-vue3/
 │   │   ├── composables/             # WebRTC 核心逻辑
 │   │   │   ├── useWebRTC.ts         # WebRTC 连接管理
 │   │   │   ├── useMediaStream.ts    # 媒体流管理
-│   │   │   └── useDataChannel.ts    # 数据通道
+│   │   │   ├── useSignaling.ts      # 信令连接
+│   │   │   └── useChat.ts           # 聊天功能
 │   │   ├── router/                  # 路由配置
 │   │   ├── stores/                  # Pinia 状态管理
 │   │   ├── styles/                  # 全局样式
@@ -105,9 +106,12 @@ webrtc-stream-vue3/
 | 文件 | 职责 |
 |------|------|
 | `client/src/utils/webrtc-utils.ts` | WebRTC 工具函数：编码选择、比特率计算、权限请求 |
+| `client/src/utils/ui-utils.ts` | UI 工具函数：移动端检测、设备判断 |
+| `client/src/utils/config.ts` | 配置管理：环境变量、服务器地址 |
 | `client/src/composables/useWebRTC.ts` | WebRTC 连接管理：PeerConnection、ICE 候选 |
 | `client/src/composables/useMediaStream.ts` | 媒体流管理：摄像头、屏幕共享、音频设备 |
-| `client/src/composables/useDataChannel.ts` | 数据通道：实时聊天 |
+| `client/src/composables/useSignaling.ts` | 信令连接：WebSocket 通信、房间管理 |
+| `client/src/composables/useChat.ts` | 聊天功能：Data Channel 消息收发 |
 | `client/src/views/Home.vue` | 推流端 UI 和逻辑 |
 | `client/src/views/Viewer.vue` | 观看端 UI 和逻辑 |
 | `server/src/utils/roomManager.ts` | 房间管理：创建、加入、离开 |
@@ -262,14 +266,29 @@ git push origin develop
 gh pr create --base main --head develop --title "feat: 功能描述"
 ```
 
-### PR 合并后同步
+### PR 合并后同步（重要！）
+
+**⚠️ 关键步骤**：PR 合并到 main 后，必须立即同步到本地 develop 分支！
 
 ```bash
 # PR 合并后，同步 develop 分支
 git switch develop
 git fetch origin main
 git merge FETCH_HEAD --no-edit
+
+# 推送到远程 develop（保持远程 develop 与 main 同步）
+git push origin develop
 ```
+
+**为什么重要？**
+- GitHub PR 合并后，main 分支会产生新的 merge commit
+- 如果不及时同步，本地 develop 会落后于 main
+- 下次开发时会产生分叉历史，甚至冲突
+
+**最佳实践**：
+1. PR 合并后立即执行上述同步命令
+2. 养成习惯：每次开始新功能开发前，先同步 main 到 develop
+3. 保持 develop 始终基于 main 的最新状态
 
 ### Git 命令对照表
 
@@ -281,6 +300,42 @@ git merge FETCH_HEAD --no-edit
 | `git reset HEAD <file>` | `git restore --staged <file>` | 取消暂存 |
 
 > **注意**：`git switch` 需要 Git 2.23+ 版本
+
+### Git 操作注意事项
+
+**⚠️ 避免以下高风险操作**：
+
+| 错误操作 | 风险 | 正确做法 |
+|----------|------|----------|
+| `git rebase FETCH_HEAD` | FETCH_HEAD 是临时引用，可能导致仓库损坏 | 使用完整分支引用 `origin/develop` |
+| `git reset --hard origin/xxx` | 分支引用不存在时会失败 | 先 `git fetch` 确保引用存在 |
+| `git checkout --orphan` | 创建无历史分支，容易混乱 | 使用 `git switch -c` 创建正常分支 |
+| 删除 `.git` 目录 | 丢失所有历史记录 | 仅作为最后手段 |
+
+**✅ 安全操作流程**：
+
+```bash
+# 1. 初始化仓库
+git init
+
+# 2. 添加远程仓库
+git remote add origin <url>
+
+# 3. 获取远程分支
+git fetch origin
+
+# 4. 创建本地分支并跟踪远程分支
+git switch -c develop origin/develop
+
+# 5. 创建功能分支
+git switch -c feature/xxx
+```
+
+**操作前检查清单**：
+- [ ] `git status` - 检查工作区状态
+- [ ] `git branch -a` - 检查分支列表
+- [ ] `git log --oneline -5` - 检查提交历史
+- [ ] 确认远程分支引用存在再操作
 
 ---
 

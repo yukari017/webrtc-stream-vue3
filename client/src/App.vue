@@ -1,6 +1,6 @@
 <template>
   <div id="app">
-    <header class="app-header">
+    <header class="app-header" :class="{ 'mobile-hidden': isMobile }">
       <div class="container">
         <h1 class="logo">
           <i class="fas fa-satellite-dish"></i>
@@ -19,11 +19,11 @@
       </div>
     </header>
 
-    <main class="app-main">
+    <main class="app-main" :class="{ 'mobile-full': isMobile }">
       <router-view />
     </main>
 
-    <footer class="app-footer">
+    <footer class="app-footer" :class="{ 'mobile-hidden': isMobile }">
       <div class="container">
         <p class="footer-text">
           <i class="fas fa-code"></i>
@@ -36,6 +36,16 @@
 
 <script setup lang="ts">
 import { RouterLink, RouterView } from 'vue-router'
+import { computed } from 'vue'
+
+// 检测是否为移动设备
+const isMobile = computed(() => {
+  const ua = navigator.userAgent || ''
+  const isMobileUA = /Mobi|Android|iPhone|iPad|iPod|Windows Phone|webOS|BlackBerry/i.test(ua)
+  const screenWidth = Math.min(window.innerWidth, window.innerHeight)
+  const isMobileScreen = screenWidth > 0 && screenWidth < 768
+  return isMobileUA || isMobileScreen
+})
 </script>
 
 <style>
@@ -177,22 +187,14 @@ body {
   color: var(--primary-color);
 }
 
-/* 响应式 */
-@media (max-width: 768px) {
-  .app-header .container {
-    padding: 0 1rem;
-  }
+/* 移动端隐藏样式 */
+.app-header.mobile-hidden,
+.app-footer.mobile-hidden {
+  display: none;
+}
 
-  .logo-text {
-    font-size: 1.25rem;
-  }
-
-  .nav-link span {
-    display: none;
-  }
-
-  .app-main {
-    padding: 1rem;
-  }
+.app-main.mobile-full {
+  padding: 0;
+  max-width: none;
 }
 </style>

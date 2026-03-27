@@ -27,7 +27,10 @@ export function isAndroidTablet(): boolean {
 export function isMobile(): boolean {
   try {
     const ua = navigator.userAgent || ''
-    return /Mobi|Android|iPhone|iPad|iPod/i.test(ua)
+    const isMobileUA = /Mobi|Android|iPhone|iPad|iPod/i.test(ua)
+    const screenWidth = Math.min(window.innerWidth, window.innerHeight)
+    const isMobileScreen = screenWidth > 0 && screenWidth < 768
+    return isMobileUA || isMobileScreen
   } catch {
     return false
   }
@@ -55,6 +58,42 @@ export function formatTime(ms: number): string {
  */
 export function generateRoomId(): string {
   return Math.random().toString(36).substring(2, 8).toUpperCase()
+}
+
+/**
+ * 摄像头标签映射表
+ */
+const cameraLabelMap: Record<string, string> = {
+  'front': '前置摄像头',
+  'back': '后置摄像头',
+  'rear': '后置摄像头',
+  'environment': '后置摄像头',
+  'user': '前置摄像头',
+  'default': '默认摄像头',
+  'external': '外接摄像头',
+  'built-in': '内置摄像头',
+  'integrated': '内置摄像头'
+}
+
+/**
+ * 翻译摄像头设备标签为中文
+ */
+export function translateCameraLabel(label: string): string {
+  if (!label) return '未知摄像头'
+  
+  const lower = label.toLowerCase()
+  
+  // 尝试匹配映射表
+  for (const [key, value] of Object.entries(cameraLabelMap)) {
+    if (lower.includes(key)) return value
+  }
+  
+  // 处理数字编号的情况，如 "camera2 0, facing front"
+  if (lower.includes('facing front')) return '前置摄像头'
+  if (lower.includes('facing back')) return '后置摄像头'
+  
+  // 无法识别时返回原标签
+  return label
 }
 
 interface StatsMonitorOptions {
