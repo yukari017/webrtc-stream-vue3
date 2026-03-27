@@ -29,14 +29,15 @@ export function useMediaStream() {
       const { frameRate, resolution, shareAudio, shareCursor } = store.settings
       console.log('从store获取的设置:', { frameRate, resolution, shareAudio, shareCursor })
       
-      const stream = await getScreenStream({
+      const result = await getScreenStream({
         frameRate,
         resolution,
         shareAudio,
         shareCursor
       })
       
-      console.log('getScreenStream 返回的流:', stream)
+      const { stream, isFallback, failedReason } = result
+      console.log('getScreenStream 返回的流:', stream, { isFallback, failedReason })
       
       if (!stream) {
         throw new Error('getScreenStream 返回空流')
@@ -51,13 +52,19 @@ export function useMediaStream() {
           readyState: videoTrack.readyState,
           settings: videoTrack.getSettings()
         })
-        setVideoContentHint(videoTrack, 'detail')
+        // 屏幕共享用 detail，摄像头回退用 motion
+        setVideoContentHint(videoTrack, isFallback ? 'motion' : 'detail')
       } else {
         console.warn('流中没有视频轨道')
       }
       
       store.setScreenStream(stream)
-      store.updateStatus('屏幕共享流获取成功', 'success')
+      
+      if (isFallback) {
+        store.updateStatus(`屏幕共享不可用，已切换到后置摄像头`, 'warning')
+      } else {
+        store.updateStatus('屏幕共享流获取成功', 'success')
+      }
       
       return stream
     } catch (error) {

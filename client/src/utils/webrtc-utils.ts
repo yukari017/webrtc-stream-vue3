@@ -200,7 +200,17 @@ export async function getAudioDevices(force = false, ensurePermission = false): 
 /**
  * 获取屏幕共享流
  */
-export async function getScreenStream(options: ScreenStreamOptions = {}): Promise<MediaStream> {
+export interface ScreenStreamResult {
+  stream: MediaStream
+  isFallback: boolean       // 是否回退到摄像头
+  failedReason: string | null  // 回退原因（仅在 isFallback=true 时有值）
+}
+
+/**
+ * 获取屏幕共享流
+ * 移动端不支持屏幕共享时自动回退到后置摄像头
+ */
+export async function getScreenStream(options: ScreenStreamOptions = {}): Promise<ScreenStreamResult> {
   const {
     frameRate = 30,
     resolution = '1080p',
@@ -224,7 +234,11 @@ export async function getScreenStream(options: ScreenStreamOptions = {}): Promis
 
   const constraints: MediaStreamConstraints & { audio?: boolean; video: MediaTrackConstraints & { cursor?: string } } = {
     video: {
-      displaySurface: 'monitor',
+      // 'monitor': 整个屏幕（桌面端默认）
+      // 'window': 单个窗口
+      // 'browser': 浏览器标签页
+      // 'any': 所有类型（移动端必须用 any，否则 Android 部分设备报错）
+      displaySurface: 'any',
       width: usedResolution.width,
       height: usedResolution.height,
       frameRate: { ideal: usedFrameRate, max: usedFrameRate }
@@ -243,6 +257,7 @@ export async function getScreenStream(options: ScreenStreamOptions = {}): Promis
   console.log('屏幕共享约束条件:', constraints)
   
   let stream: MediaStream | null = null
+  let screenShareFailedReason: string | null = null
   
   if (navigator.mediaDevices && typeof navigator.mediaDevices.getDisplayMedia === 'function') {
     console.log('浏览器支持 getDisplayMedia，尝试获取屏幕共享...')
@@ -250,15 +265,28 @@ export async function getScreenStream(options: ScreenStreamOptions = {}): Promis
       stream = await navigator.mediaDevices.getDisplayMedia(constraints)
       console.log('getDisplayMedia 成功')
     } catch (err) {
-      console.warn('getDisplayMedia 失败:', err)
+      const error = err as Error
+      // 用户取消选择（常见）或浏览器不支持
+      if (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError') {
+        screenShareFailedReason = '用户取消了屏幕共享选择'
+      } else if (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError') {
+        screenShareFailedReason = '未找到可用的屏幕或窗口'
+      } else if (error.name === 'NotSupportedError') {
+        screenShareFailedReason = '当前浏览器不支持屏幕共享'
+      } else {
+        screenShareFailedReason = error.message || '屏幕共享失败'
+      }
+      console.warn(`getDisplayMedia 失败: ${screenShareFailedReason}`)
       stream = null
     }
   } else {
+    screenShareFailedReason = '当前浏览器不支持屏幕共享'
     console.warn('浏览器不支持 getDisplayMedia')
   }
 
   if (!stream) {
-    console.log('尝试回退到摄像头采集...')
+    // 尝试回退到后置摄像头（Android/iOS 移动端场景）
+    console.log('尝试回退到后置摄像头...')
     try {
       const cameraConstraints: MediaStreamConstraints = {
         video: {
@@ -271,9 +299,13 @@ export async function getScreenStream(options: ScreenStreamOptions = {}): Promis
       }
       
       stream = await navigator.mediaDevices.getUserMedia(cameraConstraints)
-      console.log('摄像头采集成功')
+      console.log('摄像头回退成功，标记为非屏幕共享模式')
     } catch (camErr) {
-      throw new Error(`无法获取屏幕或摄像头视频流: ${(camErr as Error).message}`)
+      const camError = camErr as Error
+      const baseMsg = screenShareFailedReason 
+        ? `${screenShareFailedReason}，且摄像头采集也失败` 
+        : '无法获取屏幕或摄像头视频流'
+      throw new Error(`${baseMsg}: ${camError.message}`)
     }
   }
 
@@ -286,7 +318,11 @@ export async function getScreenStream(options: ScreenStreamOptions = {}): Promis
     throw new Error('未获取到视频轨道')
   }
 
-  return stream
+  return {
+    stream,
+    isFallback: screenShareFailedReason !== null,
+    failedReason: screenShareFailedReason
+  }
 }
 
 /**
@@ -370,10 +406,10 @@ export async function applySenderParameters(
   }
 
   try {
-    const params = sender.getParameters()
+    const params = sender.getParameters() as RTCRtpSendParameters
     
     if (!params.encodings || params.encodings.length === 0) {
-      params.encodings = [{}]
+      params.encodings = [{ rid: '1' } as RTCRtpEncodingParameters]
     }
 
     const targetBps = Math.max(100000, Math.floor(targetBitrateKbps * 1000))
