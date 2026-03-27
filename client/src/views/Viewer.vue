@@ -106,7 +106,16 @@
                   v-model="roomId" 
                   placeholder="输入推流端的房间号"
                   :disabled="isConnected"
+                  @keyup.enter="joinRoom"
                 />
+                <button 
+                  class="btn btn-secondary" 
+                  @click="clearRoomId"
+                  title="清空房间号"
+                >
+                  <i class="fas fa-trash"></i>
+                  清空
+                </button>
                 <button 
                   class="btn btn-success" 
                   @click="joinRoom" 
@@ -162,9 +171,18 @@
                   type="text" 
                   class="form-control" 
                   v-model="roomId" 
-                  placeholder="输入推流端的房间号"
+                  placeholder="输入房间号"
                   :disabled="isConnected"
+                  @keyup.enter="joinRoom"
                 />
+                <button 
+                  class="btn btn-secondary" 
+                  @click="clearRoomId"
+                  title="清空房间号"
+                >
+                  <i class="fas fa-trash"></i>
+                  清空
+                </button>
                 <button 
                   class="btn btn-success" 
                   @click="joinRoom" 
@@ -435,8 +453,8 @@ const joinRoom = async () => {
   
   const success = await webrtc.joinAsViewer(roomId.value)
   if (success) {
-    // 保存房间号到 sessionStorage，支持杀后台重连
-    sessionStorage.setItem('viewerRoomId', roomId.value)
+    // 保存房间号到 localStorage，持久化缓存
+    localStorage.setItem('viewerRoomId', roomId.value)
     
     startTime.value = Date.now()
     startViewingTimer()
@@ -461,13 +479,16 @@ const leaveRoom = () => {
   // 清理所有资源
   store.cleanup()
   
-  // 清除保存的房间号
-  sessionStorage.removeItem('viewerRoomId')
-  
-  // 重置房间号，让用户可以重新加入
+  // 保留缓存的房间号（用户下次可以直接用）
+  // 重置房间号
   roomId.value = ''
   
   store.updateStatus('已离开房间', 'info')
+}
+
+const clearRoomId = () => {
+  roomId.value = ''
+  localStorage.removeItem('viewerRoomId')
 }
 
 const togglePerfPanel = () => {

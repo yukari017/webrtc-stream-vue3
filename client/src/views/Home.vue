@@ -2,7 +2,8 @@
   <div class="home-page">
     <div class="page-header">
       <h2><i class="fas fa-video"></i> 推流端</h2>
-      <p class="subtitle">将您的屏幕或摄像头视频流推送到观看端</p>
+      <p class="subtitle" v-if="!isMobileDevice">将您的屏幕或摄像头视频流推送到观看端</p>
+      <p class="subtitle" v-else>将您的摄像头视频流推送到观看端</p>
     </div>
     
     <div class="page-content">
@@ -30,20 +31,31 @@
               <div class="placeholder-content">
                 <i class="fas fa-video-slash fa-4x mb-4"></i>
                 <p>未检测到视频流</p>
-                <p class="text-sm text-muted">请先获取屏幕或摄像头视频流</p>
+                <p class="text-sm text-muted" v-if="!isMobileDevice">请先获取屏幕或摄像头视频流</p>
+                <p class="text-sm text-muted" v-else>请先点击下方按钮获取摄像头视频流</p>
               </div>
             </div>
             
             <div class="stream-controls mt-4">
               <div class="flex gap-2">
-                <button class="btn btn-primary flex-1" @click="getScreenStream" :disabled="isGettingStream || isStreaming">
-                  <i class="fas fa-desktop"></i>
-                  {{ isGettingStream ? '获取中...' : '屏幕共享' }}
-                </button>
-                <button class="btn btn-secondary flex-1" @click="getCameraStream" :disabled="isGettingStream || isStreaming">
-                  <i class="fas fa-camera"></i>
-                  {{ isGettingStream ? '获取中...' : '摄像头' }}
-                </button>
+                <!-- 桌面端：显示屏幕共享 + 摄像头 -->
+                <template v-if="!isMobileDevice">
+                  <button class="btn btn-primary flex-1" @click="getScreenStream" :disabled="isStreaming">
+                    <i class="fas fa-desktop"></i>
+                    {{ isGettingStream ? '获取中...' : '屏幕共享' }}
+                  </button>
+                  <button class="btn btn-secondary flex-1" @click="getCameraStream" :disabled="isGettingStream || isStreaming">
+                    <i class="fas fa-camera"></i>
+                    {{ isGettingStream ? '获取中...' : '摄像头' }}
+                  </button>
+                </template>
+                <!-- 移动端：只显示获取摄像头 -->
+                <template v-else>
+                  <button class="btn btn-primary flex-1" @click="getCameraStream" :disabled="isGettingStream || isStreaming">
+                    <i class="fas fa-camera"></i>
+                    {{ isGettingStream ? '获取中...' : '获取摄像头' }}
+                  </button>
+                </template>
                 <button 
                   class="btn btn-success flex-1" 
                   @click="startStreaming"
@@ -140,16 +152,6 @@
                 </button>
               </div>
             </div>
-            
-            <div class="form-group" v-if="currentStreamType === 'camera'">
-              <label for="home-camera-mobile" class="form-label">摄像头</label>
-              <select id="home-camera-mobile" name="cameraMobile" class="form-control" v-model="selectedCameraId" :disabled="isStreaming">
-                <option value="">选择摄像头</option>
-                <option v-for="camera in cameras" :key="camera.deviceId" :value="camera.deviceId">
-                  {{ camera.label || `摄像头 ${camera.deviceId.slice(0, 8)}` }}
-                </option>
-              </select>
-            </div>
           </div>
           
           <!-- 聊天面板 -->
@@ -198,16 +200,15 @@
                 </button>
               </div>
             </div>
-            
-            <div class="form-group" v-if="currentStreamType === 'camera'">
-              <label for="home-camera-desktop" class="form-label">摄像头</label>
-              <select id="home-camera-desktop" name="cameraDesktop" class="form-control" v-model="selectedCameraId" :disabled="isStreaming">
-                <option value="">选择摄像头</option>
-                <option v-for="camera in cameras" :key="camera.deviceId" :value="camera.deviceId">
-                  {{ camera.label || `摄像头 ${camera.deviceId.slice(0, 8)}` }}
-                </option>
-              </select>
+          </div>
+          
+          <!-- 视频设置 -->
+          <div class="card mt-4">
+            <div class="card-header">
+              <h3 class="card-title">视频设置</h3>
             </div>
+            
+            <CameraSelector v-model="selectedCameraId" :disabled="isStreaming" />
           </div>
           
           <!-- 音频设置 -->
@@ -306,10 +307,11 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useWebRTCStore } from '@/stores'
 import { useWebRTC } from '@/composables/useWebRTC'
 import { useMediaStream } from '@/composables/useMediaStream'
-import { generateRoomId } from '@/utils/ui-utils'
+import { generateRoomId, isMobile } from '@/utils/ui-utils'
 import type { AudioDevice, WebRTCSettings } from '@/types/webrtc'
 import ChatPanel from '@/components/Chat/ChatPanel.vue'
 import StatusLog from '@/components/common/StatusLog.vue'
+import CameraSelector from '@/components/common/CameraSelector.vue'
 
 const store = useWebRTCStore()
 const webrtc = useWebRTC()
@@ -327,6 +329,7 @@ const roomId = computed({
 const currentStreamType = ref('')
 const showPerfPanel = ref(true)
 const isGettingStream = ref(false)
+const isMobileDevice = isMobile()
 
 // 摄像头列表
 const cameras = ref<MediaDeviceInfo[]>([])
@@ -382,6 +385,9 @@ const copyRoomId = async () => {
 }
 
 const getScreenStream = async () => {
+  // 页面加载期间（onMounted 的临时摄像头流进行中）isGettingStream 为 true，
+  // 屏幕共享不依赖它，只靠自己守卫
+  if (isGettingStream.value || isStreaming.value) return
   isGettingStream.value = true
   try {
     const stream = await media.getScreenShareStream()
@@ -512,9 +518,38 @@ const handlePageShow = (event: PageTransitionEvent) => {
 onMounted(async () => {
   await refreshAudioDevices()
 
+  // 加载摄像头列表（移动端需要先请求权限才能获取真实设备名）
   try {
+    let tempStream: MediaStream | null = null
+    
+    // 移动端先请求摄像头权限，以获取带真实 label 的设备列表
+    if (isMobileDevice) {
+      try {
+        tempStream = await navigator.mediaDevices.getUserMedia({ video: true })
+      } catch {
+        // 权限被拒也能继续，enumerateDevices 仍能返回设备（只是没 label）
+      }
+    }
+    
     const devices = await navigator.mediaDevices.enumerateDevices()
     cameras.value = devices.filter(d => d.kind === 'videoinput')
+    
+    // 移动端默认选择后置摄像头（需要真实 label 才能准确判断）
+    if (isMobileDevice && cameras.value.length > 0) {
+      const rearCamera = cameras.value.find(c => {
+        const label = (c.label || '').toLowerCase()
+        return label.includes('back') || label.includes('rear') || 
+               label.includes('后置') || label.includes('environment')
+      })
+      selectedCameraId.value = rearCamera 
+        ? rearCamera.deviceId 
+        : cameras.value[cameras.value.length - 1].deviceId
+    }
+    
+    // 释放临时流
+    if (tempStream) {
+      tempStream.getTracks().forEach(t => t.stop())
+    }
   } catch (error) {
     console.error('加载摄像头列表失败:', error)
   }
