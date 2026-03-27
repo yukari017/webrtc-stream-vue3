@@ -266,6 +266,13 @@ export const useWebRTCStore = defineStore('webrtc', {
       this.clientId = ''
       this.resetReconnectAttempts()
       this.resetIceRestartAttempts()
+      this.performance = {
+        bitrate: 0,
+        resolution: '0×0',
+        framerate: 0,
+        packetLoss: 0,
+        rtt: 0
+      }
       this.updateStatus('已清理所有资源', 'info')
     }
   },

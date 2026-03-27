@@ -900,6 +900,7 @@ body.dark-theme .connection-info {
   background: #e9ecef;
   outline: none;
   -webkit-appearance: none;
+  appearance: none;
 }
 
 body.dark-theme .volume-slider {
