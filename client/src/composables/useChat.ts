@@ -29,8 +29,7 @@ export function useChat() {
     if (msg.type === 'chat') {
       addMessage({
         text: msg.text,
-        // 发送者 ID === 本地 ID → 显示"对方"，否则"我"
-        sender: msg.sender === store.clientId ? '对方' : (msg.sender || '对方'),
+        sender: msg.sender === store.clientId ? '我' : msg.sender,
         timestamp: msg.timestamp || Date.now(),
         isLocal: false
       })
@@ -47,7 +46,7 @@ export function useChat() {
     messages.value.push({
       id: message.id || `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
       text: escapeHtml(message.text || ''),
-      sender: message.sender || '未知',
+      sender: message.isLocal ? '我' : (message.sender || '未知'),
       timestamp: message.timestamp || Date.now(),
       isLocal: message.isLocal,
       isSystem: message.isSystem

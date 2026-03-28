@@ -3,7 +3,7 @@
     <div
       class="chat-messages"
       ref="chatMessagesRef"
-      @click="markMessagesAsRead"
+      @click="$emit('mark-read')"
     >
       <div
         v-for="(message, index) in messages"
@@ -36,7 +36,7 @@
         <p class="text-muted">开始第一场对话吧！</p>
       </div>
     </div>
-    
+
     <div class="chat-input">
       <label for="mobile-chat-input" class="sr-only">聊天消息</label>
       <input
@@ -62,49 +62,48 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
+import { ref, watch, onActivated, nextTick } from 'vue'
 import { useChat } from '@/composables/useChat'
 
 const props = defineProps<{
   isConnected: boolean
+  /** 由父组件传入的消息列表（父组件统一管理事件监听和未读计数） */
+  messages: {
+    id: string
+    text: string
+    sender: string
+    timestamp: number
+    isLocal?: boolean
+    isSystem?: boolean
+  }[]
 }>()
 
 const emit = defineEmits<{
-  'update:unread-count': [value: number]
+  'scroll-to-bottom': []
+  'mark-read': []
+  'send-message': [text: string]
 }>()
 
 const chat = useChat()
 const chatMessagesRef = ref<HTMLDivElement | null>(null)
 
-const messages = computed(() => chat.messages.value)
-const unreadCount = ref(0)
-const previousMessageCount = ref(0)
-
-watch(() => messages.value.length, (newLength) => {
-  if (newLength > previousMessageCount.value) {
-    const newMessage = messages.value[messages.value.length - 1]
-    
-    if (newMessage && !newMessage.isLocal) {
-      unreadCount.value++
-      emit('update:unread-count', unreadCount.value)
+// 本地发送消息后滚动到底
+watch(() => chat.messages.value.length, () => {
+  nextTick(() => {
+    if (chatMessagesRef.value) {
+      chatMessagesRef.value.scrollTop = chatMessagesRef.value.scrollHeight
     }
-    
-    nextTick(() => {
-      if (chatMessagesRef.value) {
-        chatMessagesRef.value.scrollTop = chatMessagesRef.value.scrollHeight
-      }
-    })
-  }
-  previousMessageCount.value = newLength
+  })
 })
 
 const sendMessage = () => {
   if (!chat.newMessage.value.trim() || !props.isConnected) return
-  
-  chat.sendMessage(chat.newMessage.value)
-  unreadCount.value = 0
-  emit('update:unread-count', 0)
-  
+
+  const text = chat.newMessage.value.trim()
+  emit('send-message', text)  // 通知父组件把自己发的消息加到列表
+  chat.sendMessage(text)
+  emit('mark-read')
+
   setTimeout(() => {
     if (chatMessagesRef.value) {
       chatMessagesRef.value.scrollTop = chatMessagesRef.value.scrollHeight
@@ -112,39 +111,29 @@ const sendMessage = () => {
   }, 100)
 }
 
-const markMessagesAsRead = () => {
-  unreadCount.value = 0
-  emit('update:unread-count', 0)
-  chat.markAsRead()
-}
+// 每次激活聊天标签时：滚动到底 + 通知父组件已读
+onActivated(() => {
+  nextTick(() => {
+    if (chatMessagesRef.value) {
+      chatMessagesRef.value.scrollTop = chatMessagesRef.value.scrollHeight
+    }
+  })
+  emit('scroll-to-bottom')
+  emit('mark-read')
+})
 
 const formatTime = (timestamp: string | number): string => {
   if (!timestamp) return ''
-  
   try {
-    const date = typeof timestamp === 'string' 
+    const date = typeof timestamp === 'string'
       ? new Date(Date.parse(timestamp))
       : new Date(timestamp)
-    
-    if (isNaN(date.getTime())) {
-      return ''
-    }
-    
+    if (isNaN(date.getTime())) return ''
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   } catch {
     return ''
   }
 }
-
-let unsubscribe: (() => void) | undefined
-
-onMounted(() => {
-  unsubscribe = chat.init()
-})
-
-onUnmounted(() => {
-  if (unsubscribe) unsubscribe()
-})
 </script>
 
 <style scoped>

@@ -91,14 +91,48 @@ export function useWebRTC() {
 
   // ─── Data Channel 设置 ─────────────────────────────────────────────────
 
+  /**
+   * DataChannel 互斥锁
+   * 推流端（isStreaming）等待 Viewer 发来 "datachannel-ready" 后才认为可写
+   * 观看端（!isStreaming）DataChannel open 后主动发送 "datachannel-ready"
+   */
+  let dataChannelReady = false
+
   const setupDataChannel = (channel: RTCDataChannel): void => {
     channel.onopen = () => {
       store.updateStatus('数据通道已打开', 'success')
+
+      // 观看端：DataChannel open 后通知推流端可以开始发消息了
+      if (!store.isStreaming) {
+        const msg = JSON.stringify({ type: 'datachannel-ready' })
+        if (channel.readyState === 'open') {
+          channel.send(msg)
+        } else {
+          // readyState 可能还是 connecting，延迟发送
+          const waitForOpen = setInterval(() => {
+            if (channel.readyState === 'open') {
+              clearInterval(waitForOpen)
+              channel.send(msg)
+            }
+          }, 50)
+        }
+      }
     }
 
     channel.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data)
+
+        // 推流端：收到 Viewer 的 "datachannel-ready" 后解锁发送
+        if (
+          store.isStreaming &&
+          (data as Record<string, unknown>).type === 'datachannel-ready'
+        ) {
+          dataChannelReady = true
+          store.updateStatus('数据通道就绪，可以开始聊天了', 'success')
+          return
+        }
+
         eventBus.emit('data-channel-message', data)
       } catch (error) {
         console.warn('数据通道消息解析失败:', error)
@@ -482,13 +516,51 @@ export function useWebRTC() {
 
   // ─── 数据通道 ───────────────────────────────────────────────────────────
 
+  /**
+   * 待发送消息队列（DataChannel 互斥锁开启时暂存）
+   */
+  const pendingMessages: string[] = []
+
+  const flushPendingMessages = (channel: RTCDataChannel): void => {
+    while (pendingMessages.length > 0 && channel.readyState === 'open') {
+      const msg = pendingMessages.shift()
+      if (msg) {
+        try {
+          channel.send(msg)
+        } catch {
+          // 发送失败，丢弃该消息
+        }
+      }
+    }
+  }
+
   const sendDataChannelMessage = (data: unknown): boolean | Promise<boolean> => {
     const pc = store.peerConnection
     if (!pc) return false
 
     try {
       const channel = pc.dataChannel
+      const msgStr = JSON.stringify(data)
 
+      // ── 推流端：等待 Viewer 发来 datachannel-ready ─────────────────────
+      if (store.isStreaming) {
+        if (dataChannelReady && channel?.readyState === 'open') {
+          channel.send(msgStr)
+          return true
+        }
+
+        // 未就绪，暂存消息，50ms 后重试
+        pendingMessages.push(msgStr)
+        setTimeout(() => {
+          const ch = pc.dataChannel
+          if (ch && ch.readyState === 'open') {
+            flushPendingMessages(ch)
+          }
+        }, 50)
+        return true
+      }
+
+      // ── 观看端：等待 channel open ──────────────────────────────────────
       if (!channel) {
         return new Promise<boolean>(resolve => {
           let resolved = false
@@ -499,7 +571,7 @@ export function useWebRTC() {
               if (!resolved) {
                 resolved = true
                 try {
-                  ch.send(JSON.stringify(data))
+                  ch.send(msgStr)
                   resolve(true)
                 } catch {
                   resolve(false)
@@ -510,22 +582,19 @@ export function useWebRTC() {
 
           setTimeout(() => {
             clearInterval(checkInterval)
-            if (!resolved) {
-              resolved = true
-              resolve(false)
-            }
+            if (!resolved) resolved = true
           }, 5000)
         })
       }
 
       if (channel.readyState === 'open') {
-        channel.send(JSON.stringify(data))
+        channel.send(msgStr)
         return true
       } else if (channel.readyState === 'connecting') {
         return new Promise<boolean>(resolve => {
           const onOpen = () => {
             channel.removeEventListener('open', onOpen)
-            channel.send(JSON.stringify(data))
+            channel.send(msgStr)
             resolve(true)
           }
           channel.addEventListener('open', onOpen)
