@@ -33,7 +33,11 @@
         <MobileChatTab
           v-else-if="activeTab === 'chat'"
           :is-connected="isConnected"
-          @update:unread-count="handleUnreadCountUpdate"
+          :messages="chatMessages"
+          :has-unread="chatUnreadCount > 0"
+          @scroll-to-bottom="chatUnreadCount = 0"
+          @mark-read="chatUnreadCount = 0"
+          @send-message="handleSendMessage"
         />
         <MobileLogTab
           v-else-if="activeTab === 'log'"
@@ -53,8 +57,9 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useWebRTCStore } from '@/stores'
 import { useWebRTC } from '@/composables/useWebRTC'
 import { useMediaStream } from '@/composables/useMediaStream'
-import { generateRoomId } from '@/utils/ui-utils'
-import type { WebRTCSettings, AudioDevice } from '@/types/webrtc'
+import { generateRoomId, escapeHtml } from '@/utils/ui-utils'
+import { eventBus } from '@/utils/eventBus'
+import type { WebRTCSettings, AudioDevice, ChatMessage } from '@/types/webrtc'
 import MobileTabBar from './MobileTabBar.vue'
 import MobileStreamTab from './MobileStreamTab.vue'
 import MobileSettingsTab from './MobileSettingsTab.vue'
@@ -73,6 +78,53 @@ const roomId = ref('')
 const selectedCameraId = ref('')
 const selectedAudioDeviceId = ref('')
 const chatUnreadCount = ref(0)
+
+/** 聊天消息列表（由父组件统一管理，页面加载时就注册监听） */
+const chatMessages = ref<{
+  id: string
+  text: string
+  sender: string
+  timestamp: number
+  isLocal?: boolean
+  isSystem?: boolean
+}[]>([])
+
+/** 统一的消息监听（页面加载时就注册，不依赖聊天标签页是否激活） */
+const onDataChannelMessage = (data: unknown): void => {
+  const msg = data as ChatMessage
+  if (msg.type !== 'chat') return
+
+  if (activeTab.value !== 'chat') {
+    chatUnreadCount.value++
+  }
+
+  chatMessages.value.push({
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
+    text: escapeHtml(msg.text || ''),
+    sender: msg.sender === store.clientId ? '我' : msg.sender,
+    timestamp: msg.timestamp || Date.now(),
+    isLocal: false
+  })
+
+  if (chatMessages.value.length > 100) {
+    chatMessages.value = chatMessages.value.slice(-100)
+  }
+}
+
+const handleSendMessage = (text: string): void => {
+  chatMessages.value.push({
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
+    text,
+    sender: '我',
+    timestamp: Date.now(),
+    isLocal: true
+  })
+}
+
+onMounted(() => {
+  eventBus.on('data-channel-message', onDataChannelMessage)
+  initDevices()
+})
 
 const cameras = ref<MediaDeviceInfo[]>([])
 const audioDevices = ref<AudioDevice[]>([])
@@ -106,9 +158,6 @@ const connectionStatusText = computed(() => {
   return '未连接'
 })
 
-const handleUnreadCountUpdate = (count: number) => {
-  chatUnreadCount.value = count
-}
 
 const initDevices = async () => {
   try {
@@ -199,6 +248,7 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  eventBus.off('data-channel-message', onDataChannelMessage)
   window.removeEventListener('pageshow', handlePageShow)
   webrtc.stopStreaming()
   media.stopAllStreams()
