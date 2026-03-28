@@ -1,5 +1,11 @@
 import { DEBUG } from './config'
 
+/** @deprecated 改用 supportsTabAudioCapture */
+export function supportsDisplayMedia(): boolean {
+  if (typeof window === 'undefined') return false
+  return typeof (navigator as Navigator & { mediaDevices?: MediaDevices }).mediaDevices?.getDisplayMedia === 'function'
+}
+
 /**
  * HTML 转义
  */
@@ -7,6 +13,30 @@ export function escapeHtml(text: string): string {
   const div = document.createElement('div')
   div.textContent = text
   return div.innerHTML
+}
+
+/**
+ * 检测浏览器是否支持 getDisplayMedia 捕获标签页音频
+ * - 桌面端 Chrome 72+ / Edge 79+ / Opera 支持
+ * - Firefox 部分支持（需用户授权标签页音频）
+ * - 移动端浏览器（iOS Safari、Android Chrome）均不支持
+ */
+export function supportsTabAudioCapture(): boolean {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') return false
+
+  const w = navigator as Navigator & {
+    mediaDevices?: MediaDevices & {
+      getDisplayMedia?: (constraints?: object) => Promise<MediaStream>
+    }
+  }
+
+  // 必须有 getDisplayMedia API
+  if (typeof w.mediaDevices?.getDisplayMedia !== 'function') return false
+
+  // 移动端全部不支持
+  if (isMobile()) return false
+
+  return true
 }
 
 /**

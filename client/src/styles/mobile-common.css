@@ -1,6 +1,6 @@
-/* 移动端公共样式 - 继承 variables.css 的主题变量 */
+/* 移动端公共样式 - 移动端特有样式 */
 
-/* 基础布局 */
+/* 移动端容器布局 */
 .mobile-container {
   position: fixed;
   top: 56px;
@@ -17,7 +17,7 @@
   display: none;
 }
 
-/* 卡片样式 */
+/* 移动端卡片 */
 .mobile-card {
   background: var(--bg-primary);
   border-radius: var(--radius-lg);
@@ -42,7 +42,7 @@
   color: var(--text-primary);
 }
 
-/* 按钮样式 */
+/* 移动端按钮 */
 .mobile-btn {
   padding: 0.625rem 0.75rem;
   border-radius: var(--radius-md);
@@ -70,23 +70,15 @@
   font-size: var(--font-sm);
 }
 
-.mobile-btn-primary {
+.mobile-btn-primary,
+.mobile-btn-success,
+.mobile-btn-danger {
   background: var(--primary);
   color: white;
 }
 
 .mobile-btn-secondary {
   background: var(--secondary);
-  color: white;
-}
-
-.mobile-btn-success {
-  background: var(--primary);
-  color: white;
-}
-
-.mobile-btn-danger {
-  background: var(--primary);
   color: white;
 }
 
@@ -114,7 +106,7 @@
   }
 }
 
-/* 表单样式 */
+/* 移动端表单 */
 .mobile-form-group {
   margin-bottom: var(--spacing-sm);
 }
@@ -146,7 +138,7 @@
   flex: 1;
 }
 
-/* 文本辅助类 */
+/* 移动端文本辅助类 */
 .mobile-text-sm {
   font-size: var(--font-sm);
 }
@@ -155,7 +147,7 @@
   color: var(--text-muted);
 }
 
-/* 间距辅助类 */
+/* 移动端间距辅助类 */
 .mobile-mt-1 {
   margin-top: var(--spacing-sm);
 }

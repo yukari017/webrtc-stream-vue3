@@ -20,8 +20,15 @@ const CODEC_PREFERENCES: Record<VideoCodec, CodecPreference> = {
 
 export function getSupportedCodecs(): VideoCodec[] {
   const supported: VideoCodec[] = []
-  const capabilities = RTCRtpSender.getCapabilities('video')
-  
+
+  let capabilities: RTCRtpCapabilities | null = null
+  try {
+    // getCapabilities 在某些 WebRTC 实现中会抛异常（如 Electron + 老版本 Chrome）
+    capabilities = RTCRtpSender.getCapabilities('video')
+  } catch {
+    return ['h264']
+  }
+
   if (!capabilities) return ['h264']
   
   const codecs = capabilities.codecs || []
@@ -384,18 +391,47 @@ export async function getAudioStream(deviceId: string | null, options: AudioStre
 
 /**
  * 创建 PeerConnection 配置
+ *
+ * STUN 服务器：Google × 2 + 腾讯，覆盖主流 NAT 类型
+ * 生产环境请自行部署 TURN 服务器（如 coturn）并填入下方注释区域
  */
 export function createPeerConnectionConfig(): RTCConfiguration {
-  return {
-    iceServers: [
-      { urls: 'stun:stun.l.google.com:19302' },
-      { urls: 'stun:stun1.l.google.com:19302' }
-    ]
-  }
+  const servers: RTCIceServer[] = [
+    // Google STUN（主力，兼容最广）
+    { urls: 'stun:stun.l.google.com:19302' },
+    { urls: 'stun:stun1.l.google.com:19302' },
+    // 腾讯 STUN（国内网络环境下成功率更高）
+    { urls: 'stun:stun.qq.com:3478' },
+    // Twilio 公共 STUN（备用）
+    { urls: 'stun:global.stun.twilio.com:3478' }
+
+    // ── TURN 服务器（生产环境取消注释并填入凭证）─────────────
+    // {
+    //   urls: 'turn:your-turn.example.com:3478',
+    //   username: 'your-username',
+    //   credential: 'your-password'
+    // },
+    // {
+    //   urls: 'turns:your-turn.example.com:443',
+    //   username: 'your-username',
+    //   credential: 'your-password'
+    // }
+  ]
+
+  return { iceServers: servers }
 }
 
 /**
  * 设置视频编码器参数
+ *
+ * ⚠️ 重要：sender.getParameters() 返回的对象中包含只读字段（ssrc、rtx、cname 等）。
+ * 直接修改返回对象的 encodings/codecs 并调用 setParameters() 会触发
+ * InvalidModificationError（Chrome）或被浏览器静默拒绝。
+ *
+ * 正确做法：只构造**可写字段**的新对象，浏览器会自动合并只读字段。
+ *
+ * 可写字段（encodings）: active / maxBitrate / minBitrate / scaleResolutionDownBy / rid / maxFramerate
+ * 可写字段（codecs）:   mimeType / clockRate / sdpFmtpLine（仅这三个可写，其他只读）
  */
 export async function applySenderParameters(
   sender: RTCRtpSender,
@@ -408,40 +444,47 @@ export async function applySenderParameters(
 
   try {
     const params = sender.getParameters() as RTCRtpSendParameters
-    
-    if (!params.encodings || params.encodings.length === 0) {
-      params.encodings = [{ rid: '1' } as RTCRtpEncodingParameters]
-    }
-
-    const targetBps = Math.max(100000, Math.floor(targetBitrateKbps * 1000))
-    params.encodings[0].maxBitrate = targetBps
-
-    if (IS_ANDROID_TABLET) {
-      params.encodings[0].scaleResolutionDownBy = params.encodings[0].scaleResolutionDownBy || 1.5
-    } else {
-      params.encodings[0].scaleResolutionDownBy = params.encodings[0].scaleResolutionDownBy || 1
-    }
-
-    params.encodings[0].active = true
-
     const codec = preferredCodec || getBestCodec()
-    const codecPref = CODEC_PREFERENCES[codec]
-    
+
+    // ── encodings：只构造可写字段的新数组，不碰只读属性 ─────────────────
+    const scaleDown = IS_ANDROID_TABLET
+      ? params.encodings?.[0]?.scaleResolutionDownBy ?? 1.5
+      : params.encodings?.[0]?.scaleResolutionDownBy ?? 1
+
+    const newEncodings: RTCRtpEncodingParameters[] = [
+      {
+        active: true,
+        maxBitrate: Math.max(100_000, Math.floor(targetBitrateKbps * 1000)),
+        scaleResolutionDownBy: scaleDown
+        // rid 保留原有（如有）；ssrc/rtx/cname 等只读字段由浏览器自动合并
+      }
+    ]
+
+    // ── codecs：重新排序，不修改 codec 对象本身，只改变数组顺序 ─────────
     if (params.codecs && params.codecs.length > 0) {
-      const preferredCodecs = params.codecs.filter(c => 
-        c.mimeType.toLowerCase() === codecPref.mimeType.toLowerCase()
+      const codecPref = CODEC_PREFERENCES[codec]
+      const target = codecPref.mimeType.toLowerCase()
+
+      const idx = params.codecs.findIndex(
+        c => c.mimeType.toLowerCase() === target
       )
-      
-      if (preferredCodecs.length > 0) {
-        const otherCodecs = params.codecs.filter(c => 
-          c.mimeType.toLowerCase() !== codecPref.mimeType.toLowerCase()
-        )
-        params.codecs = [...preferredCodecs, ...otherCodecs]
+
+      if (idx > 0) {
+        // 将目标编码器移到首位，浏览器优先协商排第一的编码器
+        const reordered = [...params.codecs]
+        const [item] = reordered.splice(idx, 1)
+        reordered.unshift(item)
+        params.codecs = reordered
       }
     }
 
+    // ── 只写 encodings；codecs 数组顺序变动走同一次 setParameters ───────
+    params.encodings = newEncodings
+
     await sender.setParameters(params)
-    console.log(`视频编码器设置: ${codec.toUpperCase()}, 码率: ${targetBitrateKbps}kbps`)
+    console.log(
+      `视频编码器设置: ${codec.toUpperCase()}, 码率: ${targetBitrateKbps}kbps, scale: ${scaleDown}`
+    )
     return true
   } catch (error) {
     console.warn('无法应用 sender 参数:', error)

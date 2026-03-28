@@ -2,8 +2,11 @@ import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import App from './App.vue'
 import router from './router'
+
+// 样式引入顺序：变量 → 基础 → 组件 → 页面 → 移动端
 import './styles/variables.css'
-import './assets/css/main.css'
+import './styles/base.css'
+import './styles/components.css'
 import './styles/common.css'
 import './styles/mobile-common.css'
 

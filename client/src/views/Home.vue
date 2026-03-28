@@ -1,4 +1,4 @@
-<template>
+﻿<template>
   <!-- 移动端：使用 Tab 布局 -->
   <MobileLayout v-if="isMobileDevice" />
   
@@ -48,7 +48,7 @@
                     <i class="fas fa-desktop"></i>
                     {{ isGettingStream ? '获取中...' : '屏幕共享' }}
                   </button>
-                  <button class="btn btn-secondary flex-1" @click="getCameraStream" :disabled="isGettingStream || isStreaming">
+                  <button class="btn btn-secondary flex-1" @click="getCameraStream(); streamType = 'camera'" :disabled="isGettingStream || isStreaming">
                     <i class="fas fa-camera"></i>
                     {{ isGettingStream ? '获取中...' : '摄像头' }}
                   </button>
@@ -231,7 +231,8 @@
               </select>
             </div>
             
-            <div class="checkbox-group">
+            <!-- 共享音频：仅桌面端 + 屏幕共享模式 + 浏览器支持 tab 音频时显示 -->
+            <div class="checkbox-group" v-if="canShareAudio">
               <input 
                 type="checkbox" 
                 id="shareAudio" 
@@ -240,6 +241,9 @@
                 :disabled="isStreaming"
               />
               <label for="shareAudio">共享音频</label>
+            </div>
+            <div class="form-hint" v-else-if="!isMobileDevice && streamType === 'camera'">
+              <small>摄像头模式下不支持共享系统音频，请使用屏幕共享模式</small>
             </div>
             
             <button class="btn btn-secondary w-100 mt-2" @click="refreshAudioDevices">
@@ -311,7 +315,7 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useWebRTCStore } from '@/stores'
 import { useWebRTC } from '@/composables/useWebRTC'
 import { useMediaStream } from '@/composables/useMediaStream'
-import { generateRoomId, isMobile } from '@/utils/ui-utils'
+import { generateRoomId, isMobile, supportsTabAudioCapture } from '@/utils/ui-utils'
 import type { AudioDevice, WebRTCSettings } from '@/types/webrtc'
 import ChatPanel from '@/components/Chat/ChatPanel.vue'
 import StatusLog from '@/components/common/StatusLog.vue'
@@ -331,7 +335,6 @@ const roomId = computed({
   get: () => _roomId.value,
   set: (val: string) => { _roomId.value = val.toUpperCase() }
 })
-const currentStreamType = ref('')
 const showPerfPanel = ref(true)
 const isGettingStream = ref(false)
 const isMobileDevice = isMobile()
@@ -357,6 +360,14 @@ const settings = ref<WebRTCSettings>({
 // 音频设备
 const selectedAudioDeviceId = ref('')
 const audioDevices = ref<AudioDevice[]>([])
+
+/** 桌面端标签页音频捕获才真正可用，移动端/摄像头模式不显示共享音频选项 */
+const canShareAudio = computed(() => {
+  return !isMobileDevice && streamType.value === 'screen' && supportsTabAudioCapture()
+})
+
+/** 当前推流类型 */
+const streamType = ref<'screen' | 'camera'>('screen')
 
 // 计算属性
 const isConnected = computed(() => store.isConnected)
@@ -402,7 +413,7 @@ const getScreenStream = async () => {
   try {
     const stream = await media.getScreenShareStream()
     if (stream) {
-      currentStreamType.value = 'screen'
+      streamType.value = 'screen'
       if (localVideo.value) {
         localVideo.value.srcObject = stream
         localVideo.value.play().catch(() => {})
@@ -421,7 +432,7 @@ const getCameraStream = async () => {
       : {}
     const stream = await media.getCameraStream(constraints)
     if (stream) {
-      currentStreamType.value = 'camera'
+      streamType.value = 'camera'
       if (localVideo.value) {
         localVideo.value.srcObject = stream
         localVideo.value.play().catch(() => {})
@@ -466,7 +477,7 @@ const stopAll = () => {
   }
   
   store.cleanup()
-  currentStreamType.value = ''
+  streamType.value = 'screen'
   sessionStorage.removeItem('streamerRoomId')
   
   if (store.isStreaming) {
