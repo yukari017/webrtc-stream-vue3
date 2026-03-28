@@ -14,15 +14,7 @@ import { loadConfig } from './utils/config'
 import { logger } from './utils/logger'
 import { RoomManager } from './utils/roomManager'
 import { MessageHandler } from './utils/messageHandler'
-import type { ServerStats } from './types'
-
-// 扩展 WebSocket 接口
-interface ExtWebSocket extends WebSocket {
-  id: string
-  roomId: string
-  isAlive: boolean
-  lastSeen: number
-}
+import type { ServerStats, ExtWebSocket } from './types'
 
 // 加载配置
 const config = loadConfig()

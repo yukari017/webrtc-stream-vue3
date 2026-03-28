@@ -4,15 +4,9 @@
 
 import { WebSocket } from 'ws'
 import { logger } from '../utils/logger'
-import type { RoomInfo, ServerConfig } from '../types'
+import type { RoomInfo, ServerConfig, ExtWebSocket } from '../types'
 
-// 扩展的 WebSocket 接口
-interface ExtWebSocket extends WebSocket {
-  id: string
-  roomId: string
-  isAlive: boolean
-  lastSeen: number
-}
+export type { ExtWebSocket }
 
 export class RoomManager {
   private rooms: Map<string, RoomInfo> = new Map()
@@ -46,10 +40,13 @@ export class RoomManager {
 
   /**
    * 客户端加入房间
+   * 角色说明（支持未来扩展）：
+   *   - broadcaster：推流端（固定 1 人，创建房间时自动为此角色）
+   *   - viewer：观看端（最多 maxClients-1 人）
    */
   joinRoom(ws: ExtWebSocket, roomId: string): { success: boolean; reason?: string } {
     let room = this.rooms.get(roomId)
-    
+
     if (!room) {
       room = {
         id: roomId,
@@ -60,19 +57,19 @@ export class RoomManager {
       this.rooms.set(roomId, room)
       logger.info(`创建新房间: ${roomId}`)
     }
-    
-    // 检查房间是否已满
+
+    // 容量保护：maxClients 包含推流端（broadcaster 1 + viewer N）
     if (room.clients.size >= this.config.room.maxClients) {
       logger.warn(`房间 ${roomId} 已满，拒绝客户端 ${ws.id}`)
       return { success: false, reason: 'room-full' }
     }
-    
+
     room.clients.add(ws)
     room.lastActivity = Date.now()
     ws.roomId = roomId
-    
+
     logger.info(`客户端 ${ws.id} 加入房间 ${roomId}，当前人数: ${room.clients.size}`)
-    
+
     return { success: true }
   }
 
@@ -96,27 +93,49 @@ export class RoomManager {
   }
 
   /**
-   * 广播消息到房间
+   * 广播消息到房间（排除 sender）
    */
   broadcast(roomId: string, message: unknown, sender?: ExtWebSocket): void {
     const room = this.rooms.get(roomId)
     if (!room) return
-    
+
     const data = JSON.stringify(message)
-    
+
     room.clients.forEach(client => {
-      if (client !== sender && client.readyState === client.OPEN) {
+      if (client !== sender && client.readyState === WebSocket.OPEN) {
         client.send(data)
       }
     })
   }
 
   /**
-   * 检查房间是否就绪（2人）
+   * 单点路由：只发给指定对端
+   * 找不到目标时不抛错，静默忽略（对端可能已离开）
+   */
+  sendTo(roomId: string, targetPeerId: string, message: unknown, sender?: ExtWebSocket): void {
+    const room = this.rooms.get(roomId)
+    if (!room) return
+
+    const data = JSON.stringify(message)
+
+    for (const client of room.clients) {
+      if (client !== sender && (client as ExtWebSocket).id === targetPeerId) {
+        if (client.readyState === WebSocket.OPEN) {
+          client.send(data)
+        }
+        return // 找到就发，发完即止
+      }
+    }
+  }
+
+  /**
+   * 检查房间是否就绪
+   * 就绪条件：至少 1 个推流端 + 1 个观看端（总共 ≥ 2 人）
+   * 未来可扩展为：isBroadcasterReady / isViewerCount 等更细粒度判断
    */
   isRoomReady(roomId: string): boolean {
     const room = this.rooms.get(roomId)
-    return room !== undefined && room.clients.size >= this.config.room.maxClients
+    return room !== undefined && room.clients.size >= 2
   }
 
   /**
@@ -132,8 +151,8 @@ export class RoomManager {
         
         // 通知房间内的客户端
         room.clients.forEach(client => {
-          const extClient = client as ExtWebSocket
-          if (extClient.readyState === extClient.OPEN) {
+          const extClient: ExtWebSocket = client
+          if (extClient.readyState === WebSocket.OPEN) {
             extClient.send(JSON.stringify({ type: 'room-timeout' }))
             extClient.close()
           }
