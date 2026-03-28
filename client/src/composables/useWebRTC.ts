@@ -2,110 +2,131 @@ import { ref, onUnmounted } from 'vue'
 import { useWebRTCStore } from '@/stores'
 import { useSignaling } from './useSignaling'
 import { useMediaStream } from './useMediaStream'
-import { 
+import {
   createPeerConnectionConfig,
   applySenderParameters,
   setSdpBandwidth
 } from '@/utils/webrtc-utils'
-import { 
-  MAX_ICE_RESTART, 
-  ICE_RESTART_DELAY_MS 
+import { eventBus } from '@/utils/eventBus'
+import {
+  MAX_ICE_RESTART,
+  ICE_RESTART_DELAY_MS
 } from '@/utils/config'
 
-// 全局事件监听器
-type EventCallback = (...args: unknown[]) => void
-const globalListeners: Record<string, EventCallback[]> = {}
+/** ICE Candidate 暂存最大容量，防止内存耗尽 */
+const MAX_PENDING_CANDIDATES = 10
 
 export function useWebRTC() {
   const store = useWebRTCStore()
   const signaling = useSignaling()
   const media = useMediaStream()
-  
+
   const isNegotiating = ref(false)
   const iceRestartTimer = ref<ReturnType<typeof setTimeout> | null>(null)
   const pendingOffer = ref<RTCSessionDescriptionInit | null>(null)
-  const pendingIceCandidates = ref<RTCIceCandidateInit[]>([])
 
-  // 事件发射器
-  const emit = (event: string, ...args: unknown[]): void => {
-    if (globalListeners[event]) {
-      globalListeners[event].forEach(callback => callback(...args))
-    }
-  }
+  /** ICE Candidate 暂存队列（容量上限 MAX_PENDING_CANDIDATES） */
+  const pendingIceCandidates = ref<
+    { candidate: RTCIceCandidateInit; ts: number }[]
+  >([])
 
-  const on = (event: string, callback: EventCallback): void => {
-    if (!globalListeners[event]) {
-      globalListeners[event] = []
-    }
-    globalListeners[event].push(callback)
-  }
+  // ─── 性能数据采集 ───────────────────────────────────────────────────────
 
-  const off = (event: string, callback: EventCallback): void => {
-    if (globalListeners[event]) {
-      const index = globalListeners[event].indexOf(callback)
-      if (index > -1) {
-        globalListeners[event].splice(index, 1)
-      }
-    }
-  }
+  let statsInterval: ReturnType<typeof setInterval> | null = null
 
-  // 创建 PeerConnection
-  const createPeerConnection = (): RTCPeerConnection => {
-    if (store.peerConnection) {
+  const startStatsCollection = (): void => {
+    stopStatsCollection()
+
+    statsInterval = setInterval(async () => {
+      const pc = store.peerConnection
+      if (!pc) return
+
       try {
-        store.peerConnection.close()
-      } catch (e) {
-        console.warn('关闭旧 PeerConnection 时出错:', e)
+        const stats = await pc.getStats()
+        let bitrate = store.performance.bitrate
+        let framerate = store.performance.framerate
+        let packetLoss = store.performance.packetLoss
+        let rtt = store.performance.rtt
+
+        stats.forEach(report => {
+          if (report.type === 'inbound-rtp' && report.kind === 'video') {
+            const fps = (report as RTCStats & { framesPerSecond?: number }).framesPerSecond
+            if (fps !== undefined) framerate = fps
+            if (report.packetsLost !== undefined && report.packetsReceived !== undefined) {
+              const total = report.packetsLost + report.packetsReceived
+              packetLoss = total > 0 ? (report.packetsLost / total) * 100 : 0
+            }
+          }
+
+          if (report.type === 'candidate-pair' && report.state === 'succeeded') {
+            if (report.currentRoundTripTime !== undefined) {
+              rtt = Math.round(report.currentRoundTripTime * 1000)
+            }
+          }
+
+          if (report.type === 'outbound-rtp' && report.kind === 'video') {
+            if (report.bytesSent !== undefined) {
+              // 每 2s 采集一次，bitrate = bytes * 8 / 2
+              const prevBytes = (report as RTCStats & { lastBytesSent?: number }).lastBytesSent ?? report.bytesSent
+              const deltaBytes = report.bytesSent - prevBytes
+              ;(report as RTCStats & { lastBytesSent?: number }).lastBytesSent = report.bytesSent
+              bitrate = Math.round((deltaBytes * 8) / 2)
+            }
+          }
+        })
+
+        store.updatePerformance({ bitrate, framerate, packetLoss, rtt })
+      } catch {
+        // stats 采集失败，静默忽略
       }
-    }
-    
-    const config = createPeerConnectionConfig()
-    const pc = new RTCPeerConnection(config)
-    
-    setupPeerConnectionHandlers(pc)
-    
-    store.setPeerConnection(pc)
-    store.updateStatus('PeerConnection 创建成功', 'success')
-    
-    return pc
+    }, 2000)
   }
 
-  // 设置数据通道
+  const stopStatsCollection = (): void => {
+    if (statsInterval) {
+      clearInterval(statsInterval)
+      statsInterval = null
+    }
+  }
+
+  // ─── Data Channel 设置 ─────────────────────────────────────────────────
+
   const setupDataChannel = (channel: RTCDataChannel): void => {
     channel.onopen = () => {
       store.updateStatus('数据通道已打开', 'success')
     }
-    
+
     channel.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data)
-        emit('data-channel-message', data)
+        eventBus.emit('data-channel-message', data)
       } catch (error) {
         console.warn('数据通道消息解析失败:', error)
       }
     }
-    
+
     channel.onclose = () => {
       store.updateStatus('数据通道已关闭', 'info')
     }
-    
+
     channel.onerror = (event) => {
       const error = (event as RTCErrorEvent).error
-      if (error && (
-        error.name === 'OperationError' || 
-        error.message?.includes('Close called') ||
-        error.message?.includes('User-Initiated Abort')
-      )) {
+      if (
+        error &&
+        (error.name === 'OperationError' ||
+          error.message?.includes('Close called') ||
+          error.message?.includes('User-Initiated Abort'))
+      ) {
         console.log('数据通道正常关闭')
         return
       }
-      
       console.error('数据通道错误:', event)
       store.updateStatus('数据通道错误', 'error')
     }
   }
 
-  // 设置 PeerConnection 事件处理器
+  // ─── PeerConnection 事件处理 ────────────────────────────────────────────
+
   const setupPeerConnectionHandlers = (pc: RTCPeerConnection): void => {
     pc.onicecandidate = (event) => {
       if (event.candidate) {
@@ -115,11 +136,11 @@ export function useWebRTC() {
         })
       }
     }
-    
+
     pc.oniceconnectionstatechange = () => {
       const state = pc.iceConnectionState
       store.updateStatus(`ICE 连接状态: ${state}`, 'info')
-      
+
       switch (state) {
         case 'connected':
         case 'completed':
@@ -135,22 +156,21 @@ export function useWebRTC() {
           break
         case 'closed':
           store.updateStatus('P2P 连接已关闭', 'info')
-          emit('connection-closed')
+          eventBus.emit('connection-closed')
           break
       }
     }
-    
+
     pc.onsignalingstatechange = () => {
       store.updateStatus(`信令状态: ${pc.signalingState}`, 'info')
     }
-    
+
     pc.onnegotiationneeded = async () => {
       if (!store.isStreaming) return
       if (pc.signalingState !== 'stable') return
       if (isNegotiating.value) return
-      
+
       isNegotiating.value = true
-      
       try {
         await createAndSendOffer()
       } catch (error) {
@@ -160,12 +180,10 @@ export function useWebRTC() {
         isNegotiating.value = false
       }
     }
-    
+
     pc.ontrack = (event) => {
-      if (store.remoteStream && store.remoteStream.active) {
-        return
-      }
-      
+      if (store.remoteStream && store.remoteStream.active) return
+
       if (event.streams && event.streams[0]) {
         store.setRemoteStream(event.streams[0])
         store.updateStatus('接收到远程视频流', 'success')
@@ -173,7 +191,7 @@ export function useWebRTC() {
         console.warn('未接收到有效的远程流')
       }
     }
-    
+
     pc.ondatachannel = (event) => {
       const channel = event.channel
       setupDataChannel(channel)
@@ -181,21 +199,42 @@ export function useWebRTC() {
     }
   }
 
-  // 创建并发送 Offer
+  // ─── PeerConnection 生命周期 ───────────────────────────────────────────
+
+  const createPeerConnection = (): RTCPeerConnection => {
+    if (store.peerConnection) {
+      try {
+        store.peerConnection.close()
+      } catch (e) {
+        console.warn('关闭旧 PeerConnection 时出错:', e)
+      }
+    }
+
+    const config = createPeerConnectionConfig()
+    const pc = new RTCPeerConnection(config)
+
+    setupPeerConnectionHandlers(pc)
+    store.setPeerConnection(pc)
+    store.updateStatus('PeerConnection 创建成功', 'success')
+
+    return pc
+  }
+
+  // ─── Offer / Answer / Candidate ─────────────────────────────────────────
+
   const createAndSendOffer = async (restartIce = false): Promise<void> => {
     const pc = store.peerConnection
     if (!pc) return
-    
     if (pc.signalingState === 'have-local-offer') return
     if (pc.signalingState !== 'stable') return
-    
+
     try {
       const targetBitrate = media.getTargetBitrate()
       const offerOptions: RTCOfferOptions = restartIce ? { iceRestart: true } : {}
       const offer = await pc.createOffer(offerOptions)
       offer.sdp = setSdpBandwidth(offer.sdp, targetBitrate)
       await pc.setLocalDescription(offer)
-      
+
       signaling.sendMessage({
         type: 'offer',
         sdp: pc.localDescription as RTCSessionDescriptionInit
@@ -206,21 +245,21 @@ export function useWebRTC() {
     }
   }
 
-  // 处理远程 Offer
-  const handleRemoteOffer = async (sdp: RTCSessionDescriptionInit): Promise<void> => {
+  const handleRemoteOffer = async (
+    sdp: RTCSessionDescriptionInit
+  ): Promise<void> => {
     const pc = store.peerConnection
     if (!pc) {
       pendingOffer.value = sdp
       return
     }
-    
     if (pc.signalingState !== 'stable') return
-    
+
     try {
       await pc.setRemoteDescription(new RTCSessionDescription(sdp))
       const answer = await pc.createAnswer()
       await pc.setLocalDescription(answer)
-      
+
       signaling.sendMessage({
         type: 'answer',
         sdp: pc.localDescription as RTCSessionDescriptionInit
@@ -231,13 +270,13 @@ export function useWebRTC() {
     }
   }
 
-  // 处理远程 Answer
-  const handleRemoteAnswer = async (sdp: RTCSessionDescriptionInit): Promise<void> => {
+  const handleRemoteAnswer = async (
+    sdp: RTCSessionDescriptionInit
+  ): Promise<void> => {
     const pc = store.peerConnection
     if (!pc) return
-    
     if (pc.signalingState !== 'have-local-offer') return
-    
+
     try {
       await pc.setRemoteDescription(new RTCSessionDescription(sdp))
       store.updateStatus('已设置远程 Answer', 'info')
@@ -246,67 +285,86 @@ export function useWebRTC() {
     }
   }
 
-  // 处理 ICE Candidate
-  const handleRemoteCandidate = async (candidate: RTCIceCandidateInit): Promise<void> => {
+  const handleRemoteCandidate = async (
+    candidate: RTCIceCandidateInit
+  ): Promise<void> => {
     const pc = store.peerConnection
     if (!pc) return
-    
-    try {
-      if (pc.remoteDescription) {
+
+    // 容量保护：超出上限时丢弃最旧的
+    if (pendingIceCandidates.value.length >= MAX_PENDING_CANDIDATES) {
+      pendingIceCandidates.value.shift()
+      console.warn(
+        `pendingIceCandidates 超过上限 ${MAX_PENDING_CANDIDATES}，丢弃最旧的候选`
+      )
+    }
+
+    if (pc.remoteDescription) {
+      try {
         await pc.addIceCandidate(new RTCIceCandidate(candidate))
-        
+
+        // remoteDescription 就绪后，批量处理 pending
         if (pendingIceCandidates.value.length > 0) {
-          for (const pendingCandidate of pendingIceCandidates.value) {
+          const pending = [...pendingIceCandidates.value]
+          pendingIceCandidates.value = []
+          for (const { candidate: p } of pending) {
             try {
-              await pc.addIceCandidate(new RTCIceCandidate(pendingCandidate))
-            } catch (error) {
-              console.warn('添加存储的 ICE candidate 失败:', error)
+              await pc.addIceCandidate(new RTCIceCandidate(p))
+            } catch (err) {
+              console.warn('添加存储的 ICE candidate 失败:', err)
             }
           }
-          pendingIceCandidates.value = []
         }
-      } else {
-        pendingIceCandidates.value.push(candidate)
+      } catch (error) {
+        console.warn('添加 ICE candidate 失败:', error)
       }
-    } catch (error) {
-      console.warn('添加 ICE candidate 失败:', error)
+    } else {
+      // 暂存，带时间戳供后续清理
+      pendingIceCandidates.value.push({ candidate, ts: Date.now() })
     }
   }
 
-  // 添加本地流到 PeerConnection
+  // ─── 流操作 ─────────────────────────────────────────────────────────────
+
   const addLocalStreamToPeerConnection = (stream: MediaStream | null): void => {
     const pc = store.peerConnection
     if (!pc || !stream) return
-    
+
     const oldSenders = pc.getSenders()
     oldSenders.forEach(sender => {
       if (sender.track) {
         pc.removeTrack(sender)
       }
     })
-    
+
     stream.getTracks().forEach(track => {
       pc.addTrack(track, stream)
     })
-    
+
     setTimeout(() => {
       const senders = pc.getSenders()
-      const videoSender = senders.find(s => s.track && s.track.kind === 'video')
-      
+      const videoSender = senders.find(
+        s => s.track && s.track.kind === 'video'
+      )
+
       if (videoSender) {
         const targetBitrate = media.getTargetBitrate()
         applySenderParameters(videoSender, targetBitrate)
       }
     }, 1000)
-    
+
     store.updateStatus('本地流已添加到 PeerConnection', 'info')
   }
 
-  // 开始推流
-  const startStreaming = async (roomId: string, streamType: 'screen' | 'camera' = 'screen'): Promise<boolean> => {
+  // ─── 推流 / 观看 ────────────────────────────────────────────────────────
+
+  const startStreaming = async (
+    roomId: string,
+    streamType: 'screen' | 'camera' = 'screen'
+  ): Promise<boolean> => {
     try {
       signaling.connectSignaling(roomId)
-      
+
       await new Promise<void>((resolve, reject) => {
         const checkInterval = setInterval(() => {
           if (store.isConnected) {
@@ -314,26 +372,26 @@ export function useWebRTC() {
             resolve()
           }
         }, 100)
-        
+
         setTimeout(() => {
           clearInterval(checkInterval)
           reject(new Error('信令连接超时'))
         }, 10000)
       })
-      
+
       createPeerConnection()
-      
+
       let stream: MediaStream | null = null
       if (streamType === 'screen') {
-        stream = store.screenStream || await media.getScreenShareStream()
+        stream = store.screenStream || (await media.getScreenShareStream())
       } else if (streamType === 'camera') {
-        stream = store.localStream || await media.getCameraStream()
+        stream = store.localStream || (await media.getCameraStream())
       }
-      
+
       if (!stream) {
         throw new Error('获取媒体流失败')
       }
-      
+
       let audioStream: MediaStream | null = null
       if (store.settings.shareAudio && store.selectedAudioDeviceId) {
         audioStream = await media.getAudioInputStream()
@@ -341,47 +399,51 @@ export function useWebRTC() {
           stream = media.mergeStreams(stream, audioStream) || stream
         }
       }
-      
+
       addLocalStreamToPeerConnection(stream)
-      
+
       const pc = store.peerConnection
       if (pc) {
         const dataChannel = pc.createDataChannel('chat')
         setupDataChannel(dataChannel)
         pc.dataChannel = dataChannel
       }
-      
+
       store.setStreaming(true)
+      startStatsCollection()
       store.updateStatus('推流已开始', 'success')
-      
+
       return true
     } catch (error) {
       console.error('开始推流失败:', error)
-      store.updateStatus(`开始推流失败: ${(error as Error).message}`, 'error')
+      store.updateStatus(
+        `开始推流失败: ${(error as Error).message}`,
+        'error'
+      )
       return false
     }
   }
 
-  // 停止推流
   const stopStreaming = (): void => {
+    stopStatsCollection()
+
     if (store.peerConnection) {
       const pc = store.peerConnection
       store.setPeerConnection(null)
       pc.close()
     }
-    
+
     media.stopAllStreams()
     signaling.disconnect()
-    
+
     store.setStreaming(false)
     store.updateStatus('推流已停止', 'info')
   }
 
-  // 加入观看
   const joinAsViewer = async (roomId: string): Promise<boolean> => {
     try {
       signaling.connectSignaling(roomId)
-      
+
       await new Promise<void>((resolve, reject) => {
         const checkInterval = setInterval(() => {
           if (store.isConnected) {
@@ -389,41 +451,46 @@ export function useWebRTC() {
             resolve()
           }
         }, 100)
-        
+
         setTimeout(() => {
           clearInterval(checkInterval)
           reject(new Error('信令连接超时'))
         }, 10000)
       })
-      
+
       createPeerConnection()
-      
+
       if (pendingOffer.value) {
         const cachedOffer = pendingOffer.value
         pendingOffer.value = null
         await handleRemoteOffer(cachedOffer)
       }
-      
+
+      startStatsCollection()
       store.updateStatus('已加入观看房间，等待推流端连接...', 'info')
-      
+
       return true
     } catch (error) {
       console.error('加入观看失败:', error)
-      store.updateStatus(`加入观看失败: ${(error as Error).message}`, 'error')
+      store.updateStatus(
+        `加入观看失败: ${(error as Error).message}`,
+        'error'
+      )
       return false
     }
   }
 
-  // 发送数据通道消息
+  // ─── 数据通道 ───────────────────────────────────────────────────────────
+
   const sendDataChannelMessage = (data: unknown): boolean | Promise<boolean> => {
     const pc = store.peerConnection
     if (!pc) return false
-    
+
     try {
       const channel = pc.dataChannel
-      
+
       if (!channel) {
-        return new Promise<boolean>((resolve) => {
+        return new Promise<boolean>(resolve => {
           let resolved = false
           const checkInterval = setInterval(() => {
             const ch = pc.dataChannel
@@ -440,7 +507,7 @@ export function useWebRTC() {
               }
             }
           }, 100)
-          
+
           setTimeout(() => {
             clearInterval(checkInterval)
             if (!resolved) {
@@ -450,26 +517,26 @@ export function useWebRTC() {
           }, 5000)
         })
       }
-      
+
       if (channel.readyState === 'open') {
         channel.send(JSON.stringify(data))
         return true
       } else if (channel.readyState === 'connecting') {
-        return new Promise<boolean>((resolve) => {
+        return new Promise<boolean>(resolve => {
           const onOpen = () => {
             channel.removeEventListener('open', onOpen)
             channel.send(JSON.stringify(data))
             resolve(true)
           }
           channel.addEventListener('open', onOpen)
-          
+
           setTimeout(() => {
             channel.removeEventListener('open', onOpen)
             resolve(false)
           }, 5000)
         })
       }
-      
+
       return false
     } catch (error) {
       console.error('发送数据通道消息失败:', error)
@@ -477,38 +544,38 @@ export function useWebRTC() {
     }
   }
 
-  // ICE 重启调度
+  // ─── ICE 重启 ───────────────────────────────────────────────────────────
+
   const scheduleIceRestart = (): void => {
     if (store.iceRestartAttempts >= MAX_ICE_RESTART) {
       store.updateStatus('ICE 重启次数已达上限', 'error')
       return
     }
-    
+
     if (iceRestartTimer.value) {
       clearTimeout(iceRestartTimer.value)
     }
-    
+
     store.incrementIceRestartAttempts()
-    
+
     iceRestartTimer.value = setTimeout(() => {
       restartIce()
     }, ICE_RESTART_DELAY_MS)
   }
 
-  // 重启 ICE
   const restartIce = async (): Promise<void> => {
     const pc = store.peerConnection
     if (!pc) return
-    
+
     try {
       const offer = await pc.createOffer({ iceRestart: true })
       await pc.setLocalDescription(offer)
-      
+
       signaling.sendMessage({
         type: 'offer',
         sdp: pc.localDescription as RTCSessionDescriptionInit
       })
-      
+
       store.updateStatus('ICE 重启已发起', 'info')
     } catch (error) {
       console.error('ICE 重启失败:', error)
@@ -516,31 +583,32 @@ export function useWebRTC() {
     }
   }
 
-  // 设置信令消息处理器
-  signaling.on('room-ready', () => {
+  // ─── eventBus 事件订阅 ─────────────────────────────────────────────────
+
+  eventBus.on('room-ready', () => {
     if (store.isStreaming) {
       const pc = store.peerConnection
-      
+
       if (!pc) {
         createPeerConnection()
-        
+
         const newPc = store.peerConnection
         if (newPc) {
           const dataChannel = newPc.createDataChannel('chat')
           setupDataChannel(dataChannel)
           newPc.dataChannel = dataChannel
         }
-        
+
         let stream: MediaStream | null = null
         if (store.screenStream) {
           stream = store.screenStream
         } else if (store.localStream) {
           stream = store.localStream
         }
-        
+
         if (stream) {
           addLocalStreamToPeerConnection(stream)
-          
+
           setTimeout(() => {
             createAndSendOffer()
           }, 500)
@@ -556,8 +624,8 @@ export function useWebRTC() {
       }
     }
   })
-  
-  signaling.on('message', (data: unknown) => {
+
+  eventBus.on('message', (data: unknown) => {
     const msg = data as Record<string, unknown>
     switch (msg.type) {
       case 'offer':
@@ -573,29 +641,30 @@ export function useWebRTC() {
         console.warn('未知消息类型:', msg.type)
     }
   })
-  
-  signaling.on('peer-disconnected', () => {
-    emit('connection-closed')
+
+  eventBus.on('peer-disconnected', () => {
+    eventBus.emit('connection-closed')
   })
-  
-  // 清理
+
+  // ─── 清理 ───────────────────────────────────────────────────────────────
+
   onUnmounted(() => {
     if (iceRestartTimer.value) {
       clearTimeout(iceRestartTimer.value)
     }
-    
+    stopStatsCollection()
     stopStreaming()
-    signaling.disconnect()
   })
-  
+
   return {
     startStreaming,
     stopStreaming,
     joinAsViewer,
     addLocalStreamToPeerConnection,
     sendDataChannelMessage,
-    on,
-    off,
+    on: eventBus.on,
+    off: eventBus.off,
+
     isStreaming: () => store.isStreaming,
     isNegotiating,
     peerConnection: () => store.peerConnection
