@@ -81,7 +81,8 @@ jobs:
             cp ~/certs/cert.pem .
             cp ~/certs/key.pem .
             
-            pm2 restart webrtc-signaling || pm2 start dist/index.js --name webrtc-signaling
+            pm2 delete webrtc-signaling 2>/dev/null || true
+            pm2 start dist/index.js --name webrtc-stream
             pm2 save
 
       - name: Cleanup
