@@ -81,82 +81,24 @@
           </div>
           
           <!-- 性能监控面板 -->
-          <div class="card mt-4">
-            <div class="card-header">
-              <h3 class="card-title">性能监控</h3>
-              <button class="btn btn-sm btn-secondary" @click="togglePerfPanel">
-                <i class="fas" :class="showPerfPanel ? 'fa-eye-slash' : 'fa-eye'"></i>
-                {{ showPerfPanel ? '隐藏' : '显示' }}
-              </button>
-            </div>
-            
-            <div class="perf-panel" v-if="showPerfPanel">
-              <div class="perf-grid">
-                <div class="perf-item">
-                  <div class="perf-label">比特率</div>
-                  <div class="perf-value">{{ perfData.bitrate || '0' }} kbps</div>
-                </div>
-                <div class="perf-item">
-                  <div class="perf-label">分辨率</div>
-                  <div class="perf-value">{{ perfData.resolution || '0×0' }}</div>
-                </div>
-                <div class="perf-item">
-                  <div class="perf-label">帧率</div>
-                  <div class="perf-value">{{ perfData.framerate || '0' }} FPS</div>
-                </div>
-                <div class="perf-item">
-                  <div class="perf-label">延迟</div>
-                  <div class="perf-value">{{ perfData.rtt || '0' }} ms</div>
-                </div>
-                <div class="perf-item">
-                  <div class="perf-label">丢包率</div>
-                  <div class="perf-value">{{ perfData.packetLoss || '0' }}%</div>
-                </div>
-              </div>
-            </div>
-          </div>
+          <PerfPanel mode="send" :active="isStreaming" />
           
           <!-- 房间连接 - 移动端优先显示 -->
-          <div class="card room-connection-mobile mt-4">
-            <div class="card-header">
-              <h3 class="card-title">房间连接</h3>
-            </div>
-            
-            <div class="form-group">
-              <label for="home-room-id-mobile" class="form-label">房间号</label>
-              <div class="input-group">
-                <input 
-                  id="home-room-id-mobile"
-                  name="roomIdMobile"
-                  type="text" 
-                  class="form-control" 
-                  v-model="roomId" 
-                  placeholder="输入房间号或点击生成"
-                  readonly
-                  :disabled="isStreaming"
-                />
-                <button 
-                  class="btn btn-secondary" 
-                  @click="generateRoomIdHandler"
-                  title="生成新房间号"
-                  :disabled="isStreaming"
-                  :class="{ 'disabled-btn': isStreaming }"
-                >
-                  <i class="fas fa-random"></i>
-                  生成
-                </button>
-                <button 
-                  class="btn btn-primary" 
-                  @click="copyRoomId"
-                  title="复制房间号"
-                  :disabled="!roomId"
-                >
-                  <i class="fas fa-copy"></i>
-                  复制
-                </button>
-              </div>
-            </div>
-          </div>
+          <RoomConnection
+            v-model="roomId"
+            input-id="home-room-id-mobile"
+            input-name="roomIdMobile"
+            placeholder="输入房间号或点击生成"
+            :readonly="true"
+            :disabled="isStreaming"
+            :show-generate="true"
+            :show-copy="true"
+            :generate-disabled="isStreaming"
+            :copy-disabled="!roomId"
+            @generate="generateRoomIdHandler"
+            @copy="copyRoomId"
+            class="room-connection-mobile mt-4"
+          />
           
           <!-- 聊天面板 -->
           <ChatPanel :is-connected="isConnected" />
@@ -165,46 +107,21 @@
         <!-- 右侧：设置和状态 -->
         <div class="control-section">
           <!-- 房间连接 - 桌面端显示 -->
-          <div class="card room-connection-desktop">
-            <div class="card-header">
-              <h3 class="card-title">房间连接</h3>
-            </div>
-            
-            <div class="form-group">
-              <label for="home-room-id-desktop" class="form-label">房间号</label>
-              <div class="input-group">
-                <input 
-                  id="home-room-id-desktop"
-                  name="roomIdDesktop"
-                  type="text" 
-                  class="form-control" 
-                  v-model="roomId" 
-                  placeholder="输入房间号或点击生成"
-                  readonly
-                  :disabled="isStreaming"
-                />
-                <button 
-                  class="btn btn-secondary" 
-                  @click="generateRoomIdHandler"
-                  title="生成新房间号"
-                  :disabled="isStreaming"
-                  :class="{ 'disabled-btn': isStreaming }"
-                >
-                  <i class="fas fa-random"></i>
-                  生成
-                </button>
-                <button 
-                  class="btn btn-primary" 
-                  @click="copyRoomId"
-                  title="复制房间号"
-                  :disabled="!roomId"
-                >
-                  <i class="fas fa-copy"></i>
-                  复制
-                </button>
-              </div>
-            </div>
-          </div>
+          <RoomConnection
+            v-model="roomId"
+            input-id="home-room-id-desktop"
+            input-name="roomIdDesktop"
+            placeholder="输入房间号或点击生成"
+            :readonly="true"
+            :disabled="isStreaming"
+            :show-generate="true"
+            :show-copy="true"
+            :generate-disabled="isStreaming"
+            :copy-disabled="!roomId"
+            @generate="generateRoomIdHandler"
+            @copy="copyRoomId"
+            class="room-connection-desktop"
+          />
           
           <!-- 视频设置 -->
           <div class="card mt-4">
@@ -319,8 +236,10 @@ import { generateRoomId, isMobile, supportsTabAudioCapture } from '@/utils/ui-ut
 import type { AudioDevice, WebRTCSettings } from '@/types/webrtc'
 import ChatPanel from '@/components/Chat/ChatPanel.vue'
 import StatusLog from '@/components/common/StatusLog.vue'
+import RoomConnection from '@/components/common/RoomConnection.vue'
 import CameraSelector from '@/components/common/CameraSelector.vue'
 import MobileLayout from '@/components/mobile/MobileLayout.vue'
+import PerfPanel from '@/components/common/PerfPanel.vue'
 
 const store = useWebRTCStore()
 const webrtc = useWebRTC()
@@ -335,14 +254,8 @@ const roomId = computed({
   get: () => _roomId.value,
   set: (val: string) => { _roomId.value = val.toUpperCase() }
 })
-const showPerfPanel = ref(true)
 const isGettingStream = ref(false)
 const isMobileDevice = isMobile()
-
-// 性能监控
-let performanceTimer: ReturnType<typeof setInterval> | null = null
-let prevBytesSent = 0
-let prevTimestamp = 0
 
 // 摄像头列表
 const cameras = ref<MediaDeviceInfo[]>([])
@@ -373,7 +286,6 @@ const streamType = ref<'screen' | 'camera'>('screen')
 const isConnected = computed(() => store.isConnected)
 const isStreaming = computed(() => store.isStreaming)
 const localStream = computed(() => store.localStream)
-const perfData = computed(() => store.performance)
 
 const connectionStatusClass = computed(() => {
   if (store.isStreaming) return 'online'
@@ -455,7 +367,6 @@ const startStreaming = async () => {
     const success = await webrtc.startStreaming(roomId.value, type)
     if (success) {
       store.updateStatus('推流已开始', 'success')
-      startPerformanceMonitoring()
     }
   } catch (error) {
     const err = error as Error
@@ -464,8 +375,6 @@ const startStreaming = async () => {
 }
 
 const stopAll = () => {
-  stopPerformanceMonitoring()
-  
   if (store.isStreaming) {
     webrtc.stopStreaming()
   }
@@ -482,84 +391,6 @@ const stopAll = () => {
   
   if (store.isStreaming) {
     generateRoomIdHandler()
-  }
-}
-
-const togglePerfPanel = () => {
-  showPerfPanel.value = !showPerfPanel.value
-}
-
-// 更新性能监控数据（推流端使用 outbound-rtp）
-const updatePerformanceStats = async () => {
-  if (!store.peerConnection) return
-  
-  try {
-    const stats = await store.peerConnection.getStats()
-    let bitrate = 0
-    let framerate = 0
-    let rtt = 0
-    
-    stats.forEach(report => {
-      if (report.type === 'outbound-rtp' && report.kind === 'video') {
-        if (report.bytesSent && report.timestamp) {
-          const bytesDelta = report.bytesSent - prevBytesSent
-          const timeDelta = (report.timestamp - prevTimestamp) / 1000
-          
-          if (timeDelta > 0 && bytesDelta > 0) {
-            bitrate = Math.round((bytesDelta * 8) / timeDelta / 1000)
-          }
-          
-          prevBytesSent = report.bytesSent
-          prevTimestamp = report.timestamp
-        }
-        
-        if (report.framesPerSecond) {
-          framerate = report.framesPerSecond
-        }
-      }
-      
-      if (report.type === 'candidate-pair' && report.nominated && report.currentRoundTripTime) {
-        rtt = Math.round(report.currentRoundTripTime * 1000)
-      }
-    })
-    
-    const currentStream = store.screenStream || store.localStream
-    let resolution = '0×0'
-    if (currentStream) {
-      const videoTrack = currentStream.getVideoTracks()[0]
-      if (videoTrack) {
-        const settings = videoTrack.getSettings()
-        if (settings.width && settings.height) {
-          resolution = `${settings.width}×${settings.height}`
-        }
-      }
-    }
-    
-    store.updatePerformance({
-      bitrate: bitrate || 0,
-      framerate: framerate || 0,
-      resolution,
-      packetLoss: 0,
-      rtt: rtt || 0
-    })
-  } catch (error) {
-    console.error('获取推流端性能统计失败:', error)
-  }
-}
-
-// 启动性能监控
-const startPerformanceMonitoring = () => {
-  if (performanceTimer) clearInterval(performanceTimer)
-  prevBytesSent = 0
-  prevTimestamp = 0
-  performanceTimer = setInterval(updatePerformanceStats, 1000)
-}
-
-// 停止性能监控
-const stopPerformanceMonitoring = () => {
-  if (performanceTimer) {
-    clearInterval(performanceTimer)
-    performanceTimer = null
   }
 }
 
@@ -664,71 +495,23 @@ onMounted(async () => {
 
 onUnmounted(() => {
   window.removeEventListener('pageshow', handlePageShow)
-  stopPerformanceMonitoring()
   webrtc.stopStreaming()
   media.stopAllStreams()
 })
 </script>
 
 <style scoped>
-/* 仅保留 Home.vue 特有样式 */
-.disabled-btn {
-  opacity: 0.5;
-  cursor: not-allowed;
+/* 按钮样式已在全局 components.css 中统一定义 */
+
+.w-100 {
+  width: 100%;
 }
 
+/* 推流控制区域 */
 .stream-controls {
   display: flex;
   flex-direction: column;
   gap: 1rem;
-}
-
-.stream-controls .btn-primary {
-  background: linear-gradient(135deg, #fb7299 0%, #fc8bab 100%);
-  color: white;
-  border: none;
-}
-
-.stream-controls .btn-primary:hover {
-  background: linear-gradient(135deg, #fc8bab 0%, #fb7299 100%);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(251, 114, 153, 0.4);
-}
-
-.stream-controls .btn-secondary {
-  background: linear-gradient(135deg, #7dd3fc 0%, #bae6fd 100%);
-  color: #0f172a;
-  border: none;
-}
-
-.stream-controls .btn-secondary:hover {
-  background: linear-gradient(135deg, #bae6fd 0%, #7dd3fc 100%);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(125, 211, 252, 0.4);
-}
-
-.stream-controls .btn-danger {
-  background: linear-gradient(135deg, #fda4af 0%, #fecdd3 100%);
-  color: #9f1239;
-  border: none;
-}
-
-.stream-controls .btn-danger:hover {
-  background: linear-gradient(135deg, #fecdd3 0%, #fda4af 100%);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(253, 164, 175, 0.4);
-}
-
-.stream-controls .btn-success {
-  background: #fb7299;
-  color: white;
-  border: none;
-}
-
-.stream-controls .btn-success:hover {
-  background: #fc8bab;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(251, 114, 153, 0.4);
 }
 
 .flex-1 {
@@ -752,30 +535,6 @@ onUnmounted(() => {
   .room-connection-desktop {
     display: block;
   }
-}
-
-.connection-controls .btn-success {
-  background: #fb7299;
-  color: white;
-  border: none;
-}
-
-.connection-controls .btn-success:hover {
-  background: #fc8bab;
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(251, 114, 153, 0.4);
-}
-
-.connection-controls .btn-danger {
-  background: linear-gradient(135deg, #fda4af 0%, #fecdd3 100%);
-  color: #9f1239;
-  border: none;
-}
-
-.connection-controls .btn-danger:hover {
-  background: linear-gradient(135deg, #fecdd3 0%, #fda4af 100%);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(253, 164, 175, 0.4);
 }
 
 .radio-label {

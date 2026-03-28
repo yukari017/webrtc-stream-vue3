@@ -17,8 +17,48 @@ function removeInlineModulePreload(): Plugin {
   }
 }
 
+/**
+ * 将 CSS 链接转换为异步加载，避免阻塞渲染
+ * 使用 preload + onload 切换技术
+ */
+function asyncCssLoad(): Plugin {
+  return {
+    name: 'async-css-load',
+    enforce: 'post',
+    transformIndexHtml(html) {
+      // 匹配 <link rel="stylesheet" href="...css"> 并转换为异步加载
+      return html.replace(
+        /<link rel="stylesheet" (crossorigin\s+)?href="(\/?assets\/css\/[^"]+\.css)">/g,
+        (_, crossorigin, href) => {
+          const crossoriginAttr = crossorigin || ''
+          return `<link rel="preload" ${crossoriginAttr}href="${href}" as="style" onload="this.onload=null;this.rel='stylesheet'"><noscript><link rel="stylesheet" ${crossoriginAttr}href="${href}"></noscript>`
+        }
+      )
+    }
+  }
+}
+
+/**
+ * 优化 JS 预加载策略
+ * - 移除 vendor.js 预加载，让浏览器按需加载
+ * - 减少首屏不必要的 JS 下载
+ */
+function optimizePreload(): Plugin {
+  return {
+    name: 'optimize-preload',
+    enforce: 'post',
+    transformIndexHtml(html) {
+      // 移除所有 modulepreload 和 preload 标签
+      // 让 Vite 的模块系统自动处理依赖
+      return html
+        .replace(/<link rel="modulepreload"[^>]*>/g, '')
+        .replace(/<link rel="preload"[^>]*as="script"[^>]*>/g, '')
+    }
+  }
+}
+
 export default defineConfig({
-  plugins: [vue(), removeInlineModulePreload()],
+  plugins: [vue(), removeInlineModulePreload(), asyncCssLoad(), optimizePreload()],
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url))
@@ -71,11 +111,18 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           if (id.includes('node_modules')) {
-            if (id.includes('vue') || id.includes('pinia') || id.includes('vue-router')) {
-              return 'vendor'
+            // 将 Vue 相关库拆分，减少单个文件体积
+            if (id.includes('vue') || id.includes('vue-router')) {
+              return 'vue-vendor'
             }
+            if (id.includes('pinia')) {
+              return 'pinia-vendor'
+            }
+            // 其他 node_modules 放入 vendor
+            return 'vendor'
           }
-          if (id.includes('composables')) {
+          // WebRTC 相关代码单独打包，按需加载
+          if (id.includes('composables') || id.includes('utils/adaptiveBitrate') || id.includes('utils/webrtc-utils')) {
             return 'webrtc'
           }
         },

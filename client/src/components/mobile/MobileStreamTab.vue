@@ -58,46 +58,22 @@
         <MobilePerfPanel :show="showPerfPanel" :data="perfData" />
       </div>
       
-      <div class="card mt-4">
-        <div class="card-header">
-          <h3 class="card-title">房间连接</h3>
-        </div>
-        
-        <div class="form-group">
-          <label for="mobile-room-id" class="form-label">房间号</label>
-          <div class="input-group">
-            <input
-              id="mobile-room-id"
-              name="roomId"
-              type="text"
-              class="form-control"
-              :value="roomId"
-              @input="$emit('update:roomId', ($event.target as HTMLInputElement).value.toUpperCase())"
-              placeholder="输入房间号或点击生成"
-              readonly
-              :disabled="isStreaming"
-            />
-            <button
-              class="btn btn-secondary"
-              @click="generateRoomIdHandler"
-              title="生成新房间号"
-              :disabled="isStreaming"
-            >
-              <i class="fas fa-random"></i>
-              生成
-            </button>
-            <button
-              class="btn btn-primary"
-              @click="copyRoomId"
-              title="复制房间号"
-              :disabled="!roomId"
-            >
-              <i class="fas fa-copy"></i>
-              复制
-            </button>
-          </div>
-        </div>
-      </div>
+      <RoomConnection
+        :model-value="roomId"
+        @update:model-value="$emit('update:roomId', $event)"
+        input-id="mobile-room-id"
+        input-name="roomId"
+        placeholder="输入房间号或点击生成"
+        :readonly="true"
+        :disabled="isStreaming"
+        :show-generate="true"
+        :show-copy="true"
+        :generate-disabled="isStreaming"
+        :copy-disabled="!roomId"
+        @generate="generateRoomIdHandler"
+        @copy="copyRoomId"
+        class="mt-4"
+      />
     </div>
   </div>
 </template>
@@ -109,6 +85,7 @@ import { useWebRTC } from '@/composables/useWebRTC'
 import { useMediaStream } from '@/composables/useMediaStream'
 import { generateRoomId } from '@/utils/ui-utils'
 import MobilePerfPanel from './MobilePerfPanel.vue'
+import RoomConnection from '@/components/common/RoomConnection.vue'
 
 const props = defineProps<{
   roomId: string
@@ -383,71 +360,7 @@ onDeactivated(() => {
   flex-direction: column;
 }
 
-.card {
-  background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-  padding: 0.5rem;
-}
-
-body.dark-theme .card {
-  background: #2d3748;
-}
-
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.375rem;
-  padding-bottom: 0.25rem;
-  border-bottom: 1px solid #eaeaea;
-}
-
-body.dark-theme .card-header {
-  border-bottom-color: #4a5568;
-}
-
-.card-title {
-  margin: 0;
-  font-size: 1rem;
-  font-weight: 600;
-  color: #2d3748;
-}
-
-body.dark-theme .card-title {
-  color: #e2e8f0;
-}
-
-.video-container {
-  position: relative;
-  width: 100%;
-  background: #000;
-  border-radius: 8px;
-  overflow: hidden;
-  aspect-ratio: 16/9;
-}
-
-.video-container video {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-
-.video-overlay {
-  position: absolute;
-  top: 0;
-  left: 0;
-  right: 0;
-  bottom: 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  align-items: center;
-  background: rgba(0, 0, 0, 0.7);
-  color: white;
-  padding: 1rem;
-  text-align: center;
-}
+/* 卡片、视频容器、按钮样式已在全局 mobile-common.css 和 components.css 中定义 */
 
 .stream-time {
   position: absolute;
@@ -468,24 +381,6 @@ body.dark-theme .card-title {
   font-size: 0.625rem;
 }
 
-.video-placeholder {
-  background: #f8f9fa;
-  border-radius: 8px;
-  aspect-ratio: 16/9;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #6c757d;
-}
-
-body.dark-theme .video-placeholder {
-  background: #4a5568;
-}
-
-.placeholder-content {
-  text-align: center;
-}
-
 .stream-controls {
   display: flex;
   gap: 0.375rem;
@@ -494,136 +389,6 @@ body.dark-theme .video-placeholder {
 
 .flex-1 {
   flex: 1;
-}
-
-.btn {
-  padding: 0.625rem 0.75rem;
-  border-radius: 6px;
-  border: none;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
-  user-select: none;
-  position: relative;
-  z-index: 10;
-  font-size: 0.875rem;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.375rem;
-  transition: all 0.2s;
-  font-weight: 500;
-}
-
-.btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.btn-sm {
-  padding: 0.375rem 0.5rem;
-  font-size: 0.75rem;
-}
-
-.btn-primary {
-  background: #fb7299;
-  color: white;
-}
-
-.btn-primary:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(251, 114, 153, 0.4);
-}
-
-.btn-secondary {
-  background: #60a5fa;
-  color: white;
-}
-
-.btn-secondary:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(96, 165, 250, 0.4);
-}
-
-.btn-success {
-  background: #fb7299;
-  color: white;
-}
-
-.btn-success:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(251, 114, 153, 0.4);
-}
-
-.btn-danger {
-  background: #fb7299;
-  color: white;
-}
-
-.btn-danger:hover:not(:disabled) {
-  transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(251, 114, 153, 0.4);
-}
-
-.form-group {
-  margin-bottom: 0.375rem;
-}
-
-.form-label {
-  display: block;
-  margin-bottom: 0.375rem;
-  font-weight: 500;
-  font-size: 0.875rem;
-  color: #495057;
-}
-
-body.dark-theme .form-label {
-  color: #cbd5e0;
-}
-
-.form-control {
-  width: 100%;
-  padding: 0.625rem;
-  border: 1px solid #ced4da;
-  border-radius: 6px;
-  font-size: 0.875rem;
-  background: #fff;
-  color: #2d3748;
-}
-
-body.dark-theme .form-control {
-  background: #4a5568;
-  border-color: #718096;
-  color: #e2e8f0;
-}
-
-.input-group {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.input-group .form-control {
-  flex: 1;
-}
-
-.text-sm {
-  font-size: 0.75rem;
-}
-
-.text-muted {
-  color: #6c757d;
-}
-
-body.dark-theme .text-muted {
-  color: #a0aec0;
-}
-
-.mt-4 {
-  margin-top: 0.375rem;
-}
-
-.mb-2 {
-  margin-bottom: 0.5rem;
 }
 
 .fa-3x {
