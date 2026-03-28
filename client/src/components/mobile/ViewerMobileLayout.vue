@@ -30,7 +30,11 @@
         <MobileChatTab
           v-else-if="activeTab === 'chat'"
           :is-connected="isConnected"
-          @update:unread-count="handleUnreadCountUpdate"
+          :messages="chatMessages"
+          :has-unread="chatUnreadCount > 0"
+          @scroll-to-bottom="handleScrollToBottom"
+          @mark-read="handleMarkRead"
+          @send-message="handleSendMessage"
         />
         <MobileLogTab
           v-else-if="activeTab === 'log'"
@@ -50,7 +54,9 @@
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useWebRTCStore } from '@/stores'
 import { useWebRTC } from '@/composables/useWebRTC'
-import { useChat } from '@/composables/useChat'
+import { eventBus } from '@/utils/eventBus'
+import type { ChatMessage } from '@/types/webrtc'
+import { escapeHtml } from '@/utils/ui-utils'
 import MobileTabBar from '@/components/mobile/MobileTabBar.vue'
 import MobileChatTab from '@/components/mobile/MobileChatTab.vue'
 import MobileLogTab from '@/components/mobile/MobileLogTab.vue'
@@ -61,13 +67,22 @@ type TabId = 'stream' | 'settings' | 'chat' | 'log'
 
 const store = useWebRTCStore()
 const webrtc = useWebRTC()
-const chat = useChat()
 
 const activeTab = ref<TabId>('stream')
 const roomId = ref('')
 const chatUnreadCount = ref(0)
 const autoReconnect = ref(true)
 const volume = ref(100)
+
+/** 聊天消息列表（由父组件统一管理） */
+const chatMessages = ref<{
+  id: string
+  text: string
+  sender: string
+  timestamp: number
+  isLocal?: boolean
+  isSystem?: boolean
+}[]>([])
 
 const tabTitles: Record<TabId, string> = {
   stream: '观看',
@@ -91,19 +106,58 @@ const connectionStatusText = computed(() => {
   return '未连接'
 })
 
-const handleUnreadCountUpdate = (count: number) => {
-  chatUnreadCount.value = count
+const handleScrollToBottom = () => {
+  chatUnreadCount.value = 0
+}
+
+const handleMarkRead = () => {
+  chatUnreadCount.value = 0
 }
 
 const handleVolumeUpdate = (vol: number) => {
   volume.value = vol
 }
 
+const handleSendMessage = (text: string): void => {
+  chatMessages.value.push({
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
+    text,
+    sender: '我',
+    timestamp: Date.now(),
+    isLocal: true
+  })
+}
+
+/** 统一的消息监听（页面加载时就注册，不依赖聊天标签页是否激活） */
+const onDataChannelMessage = (data: unknown): void => {
+  const msg = data as ChatMessage
+  if (msg.type !== 'chat') return
+
+  // 正在聊天标签页时不计数
+  if (activeTab.value !== 'chat') {
+    chatUnreadCount.value++
+  }
+
+  chatMessages.value.push({
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
+    text: escapeHtml(msg.text || ''),
+    sender: msg.sender === store.clientId ? '我' : msg.sender,
+    timestamp: msg.timestamp || Date.now(),
+    isLocal: false
+  })
+
+  // 超过 100 条丢弃最旧的
+  if (chatMessages.value.length > 100) {
+    chatMessages.value = chatMessages.value.slice(-100)
+  }
+}
+
 onMounted(() => {
-  chat.init()
+  eventBus.on('data-channel-message', onDataChannelMessage)
 })
 
 onUnmounted(() => {
+  eventBus.off('data-channel-message', onDataChannelMessage)
   webrtc.stopStreaming()
   store.cleanup()
 })
