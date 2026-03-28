@@ -28,58 +28,60 @@
   font-size: 0.75rem;
 }
 
-/* 按钮颜色变体 */
-.btn-primary {
-  background: var(--primary);
-  color: white;
-}
+/* 按钮颜色变体 - 统一渐变样式 */
 
-.btn-primary:hover:not(:disabled) {
-  background: var(--primary-light);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(251, 114, 153, 0.4);
-}
-
+/* 淡蓝色 - 次要操作（生成、清空、刷新） */
 .btn-secondary {
-  background: var(--secondary);
-  color: white;
+  background: linear-gradient(135deg, #7dd3fc 0%, #bae6fd 100%);
+  color: #0c4a6e;
+  box-shadow: 0 2px 8px rgba(125, 211, 252, 0.3);
 }
 
 .btn-secondary:hover:not(:disabled) {
-  background: var(--secondary-light);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(96, 165, 250, 0.4);
+  background: linear-gradient(135deg, #bae6fd 0%, #e0f2fe 100%);
+  box-shadow: 0 4px 12px rgba(125, 211, 252, 0.4);
+  transform: translateY(-1px);
 }
 
+/* 粉色 - 主要操作（加入、复制、开始） */
+.btn-primary,
 .btn-success {
-  background: var(--primary);
+  background: linear-gradient(135deg, #fb7299 0%, #fc8bab 100%);
   color: white;
+  box-shadow: 0 2px 8px rgba(251, 114, 153, 0.3);
 }
 
+.btn-primary:hover:not(:disabled),
 .btn-success:hover:not(:disabled) {
-  background: var(--primary-light);
-  transform: translateY(-2px);
+  background: linear-gradient(135deg, #fc8bab 0%, #fda4c6 100%);
   box-shadow: 0 4px 12px rgba(251, 114, 153, 0.4);
+  transform: translateY(-1px);
 }
 
+/* 淡粉色 - 危险操作（离开、停止） */
 .btn-danger {
   background: linear-gradient(135deg, #fda4af 0%, #fecdd3 100%);
   color: #9f1239;
+  box-shadow: 0 2px 8px rgba(253, 164, 175, 0.3);
 }
 
 .btn-danger:hover:not(:disabled) {
-  background: linear-gradient(135deg, #fecdd3 0%, #fda4af 100%);
-  transform: translateY(-2px);
+  background: linear-gradient(135deg, #fecdd3 0%, #ffe4e6 100%);
   box-shadow: 0 4px 12px rgba(253, 164, 175, 0.4);
+  transform: translateY(-1px);
 }
 
+/* 警告按钮 */
 .btn-warning {
-  background: #ffc107;
-  color: #212529;
+  background: linear-gradient(135deg, #fbbf24 0%, #fcd34d 100%);
+  color: #78350f;
+  box-shadow: 0 2px 8px rgba(251, 191, 36, 0.3);
 }
 
 .btn-warning:hover:not(:disabled) {
-  background: #e0a800;
+  background: linear-gradient(135deg, #fcd34d 0%, #fde68a 100%);
+  box-shadow: 0 4px 12px rgba(251, 191, 36, 0.4);
+  transform: translateY(-1px);
 }
 
 /* 卡片样式 */
@@ -168,6 +170,7 @@ body.dark-theme .form-control:disabled {
 
 .input-group .form-control {
   flex: 1;
+  min-width: 0;
 }
 
 /* 选择框 */
@@ -460,4 +463,199 @@ body.dark-theme .status-indicator.error {
   .video-controls {
     opacity: 1;
   }
+}
+
+/* 聊天组件样式 - 桌面端和移动端共用 */
+
+/* 聊天消息 */
+.chat-message {
+  display: flex;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+  animation: slideIn 0.3s ease-out;
+}
+
+.chat-message.own-message {
+  flex-direction: row-reverse;
+}
+
+@keyframes slideIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 消息头像 */
+.message-avatar {
+  flex-shrink: 0;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #7dd3fc 0%, #bae6fd 100%);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.875rem;
+  box-shadow: 0 2px 6px rgba(125, 211, 252, 0.3);
+}
+
+.own-message .message-avatar {
+  background: linear-gradient(135deg, #fb7299 0%, #fc8bab 100%);
+  box-shadow: 0 2px 6px rgba(251, 114, 153, 0.3);
+}
+
+/* 消息主体 */
+.message-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.message-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 0.25rem;
+  gap: 0.5rem;
+}
+
+.own-message .message-header {
+  flex-direction: row-reverse;
+}
+
+.message-sender {
+  font-weight: 600;
+  font-size: 0.75rem;
+  color: var(--text-primary);
+}
+
+.own-message .message-sender {
+  color: var(--primary);
+}
+
+.message-time {
+  font-size: 0.625rem;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+/* 消息内容气泡 */
+.message-content {
+  display: inline-block;
+  padding: 0.625rem 0.875rem;
+  background: var(--bg-primary);
+  border-radius: 12px;
+  border-top-left-radius: 4px;
+  word-wrap: break-word;
+  line-height: 1.4;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  max-width: 75%;
+  font-size: 0.875rem;
+}
+
+body.dark-theme .message-content {
+  background: #4a5568;
+  color: var(--text-primary);
+}
+
+.own-message .message-content {
+  background: linear-gradient(135deg, #fb7299 0%, #fc8bab 100%);
+  color: white;
+  border-top-left-radius: 12px;
+  border-top-right-radius: 4px;
+  box-shadow: 0 2px 8px rgba(251, 114, 153, 0.3);
+}
+
+.own-message .message-body {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+
+/* 聊天输入区 */
+.chat-input {
+  display: flex;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  background: var(--bg-primary);
+  border-top: 1px solid var(--border-color);
+}
+
+.chat-input .form-control {
+  flex: 1;
+  border-radius: 20px;
+  padding: 0.5rem 1rem;
+  border: 1px solid var(--border-color);
+  font-size: 0.875rem;
+}
+
+.chat-input .form-control:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px rgba(251, 114, 153, 0.15);
+}
+
+/* 发送按钮 */
+.send-btn {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  flex-shrink: 0;
+  background: linear-gradient(135deg, #fb7299 0%, #fc8bab 100%);
+  border: none;
+  color: white;
+  transition: all 0.2s ease;
+  cursor: pointer;
+}
+
+.send-btn:hover:not(:disabled) {
+  background: linear-gradient(135deg, #fc8bab 0%, #fb7299 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(251, 114, 153, 0.4);
+}
+
+.send-btn:disabled {
+  background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e0 100%);
+  color: var(--text-muted);
+  transform: none;
+  box-shadow: none;
+}
+
+/* 聊天空状态 */
+.chat-empty {
+  text-align: center;
+  padding: 2rem 1rem;
+  color: var(--text-muted);
+}
+
+.chat-empty i {
+  color: #cbd5e0;
+  margin-bottom: 0.5rem;
+  opacity: 0.5;
+}
+
+.chat-empty p {
+  font-size: 0.875rem;
+  margin: 0;
+}
+
+/* 未读徽章 */
+.chat-badge {
+  background: linear-gradient(135deg, #fb7299 0%, #fc8bab 100%);
+  color: white;
+  font-size: 0.75rem;
+  padding: 0.125rem 0.5rem;
+  border-radius: 12px;
+  font-weight: 600;
+  min-width: 20px;
+  text-align: center;
 }

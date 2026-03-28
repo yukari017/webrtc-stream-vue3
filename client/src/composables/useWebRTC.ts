@@ -9,6 +9,10 @@ import {
 } from '@/utils/webrtc-utils'
 import { eventBus } from '@/utils/eventBus'
 import {
+  startAdaptiveBitrate,
+  stopAdaptiveBitrate
+} from '@/utils/adaptiveBitrate'
+import {
   MAX_ICE_RESTART,
   ICE_RESTART_DELAY_MS
 } from '@/utils/config'
@@ -34,8 +38,14 @@ export function useWebRTC() {
 
   let statsInterval: ReturnType<typeof setInterval> | null = null
 
+  // 用于计算码率的持久状态（存储在 statsInterval 闭包外）
+  let lastBytesSent = 0
+  let lastBytesSentTime = 0
+
   const startStatsCollection = (): void => {
     stopStatsCollection()
+    lastBytesSent = 0
+    lastBytesSentTime = Date.now()
 
     statsInterval = setInterval(async () => {
       const pc = store.peerConnection
@@ -43,10 +53,10 @@ export function useWebRTC() {
 
       try {
         const stats = await pc.getStats()
-        let bitrate = store.performance.bitrate
         let framerate = store.performance.framerate
         let packetLoss = store.performance.packetLoss
         let rtt = store.performance.rtt
+        let bitrate = store.performance.bitrate
 
         stats.forEach(report => {
           if (report.type === 'inbound-rtp' && report.kind === 'video') {
@@ -65,12 +75,15 @@ export function useWebRTC() {
           }
 
           if (report.type === 'outbound-rtp' && report.kind === 'video') {
-            if (report.bytesSent !== undefined) {
-              // 每 2s 采集一次，bitrate = bytes * 8 / 2
-              const prevBytes = (report as RTCStats & { lastBytesSent?: number }).lastBytesSent ?? report.bytesSent
-              const deltaBytes = report.bytesSent - prevBytes
-              ;(report as RTCStats & { lastBytesSent?: number }).lastBytesSent = report.bytesSent
-              bitrate = Math.round((deltaBytes * 8) / 2)
+            if (report.bytesSent !== undefined && report.bytesSent > 0) {
+              const now = Date.now()
+              if (lastBytesSent > 0 && now > lastBytesSentTime) {
+                const deltaBytes = report.bytesSent - lastBytesSent
+                const deltaSec = (now - lastBytesSentTime) / 1000
+                bitrate = Math.round((deltaBytes * 8) / deltaSec)
+              }
+              lastBytesSent = report.bytesSent
+              lastBytesSentTime = now
             }
           }
         })
@@ -445,6 +458,7 @@ export function useWebRTC() {
 
       store.setStreaming(true)
       startStatsCollection()
+      startAdaptiveBitrate(media.getTargetBitrate())
       store.updateStatus('推流已开始', 'success')
 
       return true
@@ -459,6 +473,7 @@ export function useWebRTC() {
   }
 
   const stopStreaming = (): void => {
+    stopAdaptiveBitrate()
     stopStatsCollection()
 
     if (store.peerConnection) {

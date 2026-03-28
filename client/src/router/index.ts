@@ -1,18 +1,16 @@
 import { createRouter, createWebHistory, type RouteRecordRaw } from 'vue-router'
-import Home from '../views/Home.vue'
-import Viewer from '../views/Viewer.vue'
 
 const routes: RouteRecordRaw[] = [
   {
     path: '/',
     name: 'Home',
-    component: Home,
+    component: () => import('../views/Home.vue'),
     meta: { title: 'WebRTC 推流端' }
   },
   {
     path: '/viewer',
     name: 'Viewer',
-    component: Viewer,
+    component: () => import('../views/Viewer.vue'),
     meta: { title: 'WebRTC 观看端' }
   },
   {

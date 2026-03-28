@@ -155,7 +155,8 @@ onMounted(() => {
 </script>
 
 <style scoped>
-/* 屏幕阅读器专用样式 */
+/* 聊天面板特有样式 - 公共样式见 components.css */
+
 .sr-only {
   position: absolute;
   width: 1px;
@@ -184,208 +185,22 @@ onMounted(() => {
   flex: 1;
   overflow-y: auto;
   padding: 1rem;
-  background: #f8f9fa;
+  background: var(--bg-secondary);
   cursor: pointer;
+}
+
+.chat-input {
+  background: var(--bg-primary);
+  border-top: 1px solid var(--border-color);
+}
+
+.chat-input .form-control {
+  background: var(--bg-primary);
+  border-color: var(--border-color);
+  color: var(--text-primary);
 }
 
 body.dark-theme .chat-messages {
   background: #2d3748;
-}
-
-.chat-message {
-  display: flex;
-  gap: 0.75rem;
-  margin-bottom: 1rem;
-  animation: slideIn 0.3s ease-out;
-}
-
-.chat-message.own-message {
-  flex-direction: row-reverse;
-}
-
-@keyframes slideIn {
-  from {
-    opacity: 0;
-    transform: translateY(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.message-avatar {
-  flex-shrink: 0;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  background: linear-gradient(135deg, #7dd3fc 0%, #bae6fd 100%);
-  color: white;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 0.9rem;
-  box-shadow: 0 2px 6px rgba(125, 211, 252, 0.3);
-}
-
-.own-message .message-avatar {
-  background: linear-gradient(135deg, #fb7299 0%, #fc8bab 100%);
-  color: white;
-  box-shadow: 0 2px 6px rgba(251, 114, 153, 0.3);
-}
-
-.message-body {
-  flex: 1;
-  min-width: 0;
-}
-
-.message-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.35rem;
-  gap: 1rem;
-}
-
-.own-message .message-header {
-  flex-direction: row-reverse;
-}
-
-.message-sender {
-  font-weight: 600;
-  font-size: 0.875rem;
-  color: #2d3748;
-}
-
-body.dark-theme .message-sender {
-  color: #e2e8f0;
-}
-
-.own-message .message-sender {
-  color: #fb7299;
-}
-
-.message-time {
-  font-size: 0.75rem;
-  color: #a0aec0;
-  font-weight: 500;
-}
-
-.message-content {
-  display: inline-block;
-  padding: 0.75rem 1rem;
-  background: white;
-  border-radius: 12px;
-  border-top-left-radius: 4px;
-  word-wrap: break-word;
-  line-height: 1.5;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  max-width: 70%;
-}
-
-body.dark-theme .message-content {
-  background: #4a5568;
-  color: #e2e8f0;
-}
-
-.own-message .message-content {
-  background: linear-gradient(135deg, #fb7299 0%, #fc8bab 100%);
-  color: white;
-  border-top-left-radius: 12px;
-  border-top-right-radius: 4px;
-  box-shadow: 0 2px 8px rgba(251, 114, 153, 0.3);
-}
-
-.own-message .message-body {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-}
-
-.chat-empty {
-  text-align: center;
-  padding: 2rem 1rem;
-  color: #a0aec0;
-}
-
-.chat-empty i {
-  color: #cbd5e0;
-  margin-bottom: 0.5rem;
-  opacity: 0.5;
-}
-
-.chat-empty p {
-  font-size: 0.875rem;
-  margin: 0;
-  color: #6c757d;
-}
-
-.chat-input {
-  display: flex;
-  gap: 0.5rem;
-  padding: 0.75rem;
-  background: #fff;
-  border-top: 1px solid #eaeaea;
-}
-
-body.dark-theme .chat-input {
-  background: #2d3748;
-  border-top-color: #4a5568;
-}
-
-.chat-input .form-control {
-  flex: 1;
-  border-radius: 20px;
-  padding: 0.5rem 1rem;
-  border: 1px solid #e2e8f0;
-}
-
-body.dark-theme .chat-input .form-control {
-  background: #2d3748;
-  border-color: #4a5568;
-  color: #e2e8f0;
-}
-
-.chat-input .form-control:focus {
-  outline: none;
-  border-color: #fb7299;
-  box-shadow: 0 0 0 3px rgba(251, 114, 153, 0.15);
-}
-
-.send-btn {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 0;
-  flex-shrink: 0;
-  background: linear-gradient(135deg, #fb7299 0%, #fc8bab 100%);
-  border: none;
-  color: white;
-  transition: all 0.2s ease;
-}
-
-.send-btn:hover {
-  background: linear-gradient(135deg, #fc8bab 0%, #fb7299 100%);
-  transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(251, 114, 153, 0.4);
-}
-
-.send-btn:disabled {
-  background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e0 100%);
-  color: #a0aec0;
-  transform: none;
-  box-shadow: none;
-}
-
-.badge {
-  background: linear-gradient(135deg, #fb7299 0%, #fc8bab 100%);
-  color: white;
-  font-size: 0.75rem;
-  padding: 0.25rem 0.5rem;
-  border-radius: 12px;
-  font-weight: 600;
 }
 </style>

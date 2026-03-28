@@ -160,7 +160,7 @@ export async function requestAudioPermission(): Promise<MediaStream | null> {
   try {
     // 先尝试用最简单的约束获取权限
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
-    console.log('音频权限获取成功')
+    // 仅在需要时打印，避免重复日志
     return stream
   } catch (error) {
     console.warn('获取音频权限失败:', error)
@@ -196,10 +196,14 @@ export async function getAudioDevices(force = false, ensurePermission = false): 
   // 过滤掉无效的设备（移动端在未授权时可能返回 deviceId 为空或 default）
   const validDevices = audioDevices.filter(d => d.deviceId && d.deviceId !== '')
   
+  const previousCount = deviceCache.devices.length
   deviceCache.devices = validDevices.length > 0 ? validDevices : audioDevices
   deviceCache.timestamp = now
   
-  console.log(`发现 ${audioDevices.length} 个音频设备，有效 ${validDevices.length} 个`)
+  // 仅在设备数量变化或首次检测时打印
+  if (previousCount !== deviceCache.devices.length || force) {
+    console.log(`发现 ${audioDevices.length} 个音频设备，有效 ${validDevices.length} 个`)
+  }
   
   return deviceCache.devices
 }
@@ -436,7 +440,8 @@ export function createPeerConnectionConfig(): RTCConfiguration {
 export async function applySenderParameters(
   sender: RTCRtpSender,
   targetBitrateKbps: number,
-  preferredCodec?: VideoCodec
+  preferredCodec?: VideoCodec,
+  onlyBitrate = false
 ): Promise<boolean> {
   if (!sender || !sender.track || sender.track.kind !== 'video') {
     return false
@@ -460,8 +465,10 @@ export async function applySenderParameters(
       }
     ]
 
-    // ── codecs：重新排序，不修改 codec 对象本身，只改变数组顺序 ─────────
-    if (params.codecs && params.codecs.length > 0) {
+    // ── codecs：重新排序（仅首次设置编码器时），之后跳过以避免修改只读字段 ─
+    // ⚠️ RTCRtpParameters.codecs 在 Chrome/Edge 中是只读的，
+    //    对其重新赋值会触发 InvalidModificationError。
+    if (!onlyBitrate && params.codecs && params.codecs.length > 0) {
       const codecPref = CODEC_PREFERENCES[codec]
       const target = codecPref.mimeType.toLowerCase()
 

@@ -41,60 +41,25 @@
         <MobilePerfPanel :show="showPerfPanel" :data="perfData" />
       </div>
       
-      <div class="card mt-4">
-        <div class="card-header">
-          <h3 class="card-title">房间连接</h3>
-        </div>
-        
-        <div class="form-group">
-          <label for="viewer-room-id" class="form-label">房间号</label>
-          <div class="input-group">
-            <input
-              id="viewer-room-id"
-              name="roomId"
-              type="text"
-              class="form-control"
-              :value="roomId"
-              @input="$emit('update:roomId', ($event.target as HTMLInputElement).value.toUpperCase())"
-              placeholder="输入推流端的房间号"
-              :disabled="isConnected"
-              @keyup.enter="joinRoom"
-            />
-            <button
-              class="btn btn-secondary"
-              @click="clearRoomId"
-              title="清空房间号"
-            >
-              <i class="fas fa-trash"></i>
-              清空
-            </button>
-            <button
-              class="btn btn-danger"
-              @click="joinRoom"
-              :disabled="!roomId || isConnected"
-            >
-              <i class="fas fa-sign-in-alt"></i>
-              {{ isConnected ? '已加入' : '加入' }}
-            </button>
-          </div>
-        </div>
-        
-        <div class="connection-info" v-if="isConnected">
-          <div class="info-item">
-            <i class="fas fa-door-open"></i>
-            <span>房间: {{ roomId }}</span>
-          </div>
-        </div>
-        
-        <button
-          class="btn btn-success w-100 mt-4"
-          @click="leaveRoom"
-          :disabled="!isConnected"
-        >
-          <i class="fas fa-sign-out-alt"></i>
-          离开房间
-        </button>
-      </div>
+      <RoomConnection
+        :model-value="roomId"
+        @update:model-value="$emit('update:roomId', $event)"
+        input-id="viewer-room-id"
+        input-name="roomId"
+        placeholder="输入推流端的房间号"
+        :disabled="isConnected"
+        :show-clear="true"
+        :show-join="true"
+        :show-connection-info="true"
+        :show-leave="true"
+        :join-disabled="!roomId || isConnected"
+        :join-text="isConnected ? '已加入' : '加入'"
+        :is-connected="isConnected"
+        @clear="clearRoomId"
+        @submit="joinRoom"
+        @leave="leaveRoom"
+        class="mt-4"
+      />
     </div>
   </div>
 </template>
@@ -105,6 +70,7 @@ import { useWebRTCStore } from '@/stores'
 import { useWebRTC } from '@/composables/useWebRTC'
 import { useChat } from '@/composables/useChat'
 import MobilePerfPanel from './MobilePerfPanel.vue'
+import RoomConnection from '@/components/common/RoomConnection.vue'
 
 const props = defineProps<{
   roomId: string
@@ -135,10 +101,18 @@ const perfData = computed(() => store.performance)
 const connectionQuality = computed(() => {
   const bitrate = perfData.value.bitrate || 0
   const packetLoss = perfData.value.packetLoss || 0
+  const rtt = perfData.value.rtt || 0
   
-  if (bitrate > 2000 && packetLoss < 5) return '优秀'
-  if (bitrate > 1000 && packetLoss < 10) return '良好'
-  if (bitrate > 500 && packetLoss < 20) return '一般'
+  // 综合评分：比特率(40%) + 丢包率(30%) + 延迟(30%)
+  const bitrateScore = Math.min(100, Math.max(0, (bitrate - 500) / 15))
+  const packetLossScore = Math.max(0, 100 - packetLoss * 5)
+  const rttScore = Math.max(0, 100 - rtt / 2)
+  
+  const totalScore = bitrateScore * 0.4 + packetLossScore * 0.3 + rttScore * 0.3
+  
+  if (totalScore >= 70) return '优秀'
+  if (totalScore >= 50) return '良好'
+  if (totalScore >= 30) return '一般'
   return '较差'
 })
 
@@ -251,7 +225,14 @@ const stopPerformanceMonitoring = () => {
   }
 }
 
-const startViewingTimer = () => {
+const startViewingTimer = (resume = false) => {
+  stopViewingTimer(!resume) // 恢复模式下不清空 startTime
+  
+  // 如果不是恢复，才重置开始时间
+  if (!resume || !startTime.value) {
+    startTime.value = Date.now()
+  }
+  
   const updateTimer = () => {
     if (!startTime.value) return
     
@@ -266,12 +247,15 @@ const startViewingTimer = () => {
   viewTimer = setInterval(updateTimer, 1000)
 }
 
-const stopViewingTimer = () => {
-  startTime.value = null
-  viewingTime.value = '00:00'
+const stopViewingTimer = (clearStartTime = true) => {
   if (viewTimer) {
     clearInterval(viewTimer)
     viewTimer = null
+  }
+  // 只在真正停止观看时才清空开始时间
+  if (clearStartTime) {
+    startTime.value = null
+    viewingTime.value = '00:00'
   }
 }
 
@@ -320,17 +304,17 @@ onActivated(() => {
     remoteVideo.value.srcObject = remoteStream.value
     remoteVideo.value.play().catch(() => {})
   }
-  // 恢复性能监控和观看计时器
+  // 恢复性能监控和观看计时器（保持之前的计时）
   if (store.isConnected) {
     startPerformanceMonitoring()
-    startViewingTimer()
+    startViewingTimer(true) // 恢复模式
   }
 })
 
-// KeepAlive 停用时暂停性能监控和计时器（但不断开连接）
+// KeepAlive 停用时暂停性能监控和计时器（但不断开连接，保留开始时间）
 onDeactivated(() => {
   stopPerformanceMonitoring()
-  stopViewingTimer()
+  stopViewingTimer(false) // 保留 startTime，回来时继续
 })
 </script>
 
@@ -356,251 +340,7 @@ onDeactivated(() => {
   flex-direction: column;
 }
 
-.card {
-  background: #fff;
-  border-radius: 8px;
-  box-shadow: 0 2px 10px rgba(0, 0, 0, 0.05);
-  padding: 0.5rem;
-}
-
-body.dark-theme .card {
-  background: #2d3748;
-}
-
-.card-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 0.375rem;
-  padding-bottom: 0.25rem;
-  border-bottom: 1px solid #eaeaea;
-}
-
-body.dark-theme .card-header {
-  border-bottom-color: #4a5568;
-}
-
-.card-title {
-  margin: 0;
-  font-size: 1rem;
-  font-weight: 600;
-  color: #2d3748;
-}
-
-body.dark-theme .card-title {
-  color: #e2e8f0;
-}
-
-.video-container {
-  position: relative;
-  width: 100%;
-  background: #000;
-  border-radius: 8px;
-  overflow: hidden;
-  aspect-ratio: 16/9;
-}
-
-.video-container video {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-
-.video-placeholder {
-  background: #f8f9fa;
-  border-radius: 8px;
-  aspect-ratio: 16/9;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  color: #6c757d;
-}
-
-body.dark-theme .video-placeholder {
-  background: #4a5568;
-}
-
-.placeholder-content {
-  text-align: center;
-}
-
-.stream-info {
-  background: #f8f9fa;
-  border-radius: 8px;
-  padding: 0.5rem;
-}
-
-body.dark-theme .stream-info {
-  background: #4a5568;
-}
-
-.info-grid {
-  display: flex;
-  justify-content: space-around;
-  gap: 0.5rem;
-}
-
-.info-item {
-  display: flex;
-  align-items: center;
-  gap: 0.375rem;
-  font-size: 0.75rem;
-  color: #495057;
-}
-
-body.dark-theme .info-item {
-  color: #cbd5e0;
-}
-
-.info-item i {
-  color: #fb7299;
-}
-
-.form-group {
-  margin-bottom: 0.375rem;
-}
-
-.form-label {
-  display: block;
-  margin-bottom: 0.375rem;
-  font-weight: 500;
-  font-size: 0.875rem;
-  color: #495057;
-}
-
-body.dark-theme .form-label {
-  color: #cbd5e0;
-}
-
-.form-control {
-  width: 100%;
-  padding: 0.625rem;
-  border: 1px solid #ced4da;
-  border-radius: 6px;
-  font-size: 0.875rem;
-  background: #fff;
-  color: #2d3748;
-}
-
-body.dark-theme .form-control {
-  background: #4a5568;
-  border-color: #718096;
-  color: #e2e8f0;
-}
-
-.input-group {
-  display: flex;
-  gap: 0.5rem;
-}
-
-.input-group .form-control {
-  flex: 1;
-}
-
-.connection-info {
-  background: #f8f9fa;
-  border-radius: 6px;
-  padding: 0.75rem;
-  margin-top: 0.75rem;
-}
-
-body.dark-theme .connection-info {
-  background: #4a5568;
-}
-
-.btn {
-  padding: 0.625rem 0.75rem;
-  border-radius: 6px;
-  border: none;
-  cursor: pointer;
-  font-size: 0.875rem;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 0.375rem;
-  transition: all 0.15s ease-out;
-  font-weight: 500;
-  -webkit-tap-highlight-color: transparent;
-  touch-action: manipulation;
-}
-
-.btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.btn-sm {
-  padding: 0.375rem 0.5rem;
-  font-size: 0.75rem;
-}
-
-.btn-secondary {
-  background: #60a5fa;
-  color: white;
-}
-
-.btn-success {
-  background: #fb7299;
-  color: white;
-}
-
-.btn-danger {
-  background: #fb7299;
-  color: white;
-}
-
-/* 桌面端 hover 效果 */
-@media (hover: hover) {
-  .btn-secondary:hover:not(:disabled) {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(96, 165, 250, 0.4);
-  }
-
-  .btn-success:hover:not(:disabled) {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(251, 114, 153, 0.4);
-  }
-
-  .btn-danger:hover:not(:disabled) {
-    transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(251, 114, 153, 0.4);
-  }
-}
-
-/* 移动端 active 点击效果 */
-@media (hover: none) {
-  .btn-secondary:active:not(:disabled),
-  .btn-success:active:not(:disabled),
-  .btn-danger:active:not(:disabled) {
-    transform: scale(0.96);
-    opacity: 0.85;
-    transition: none;
-  }
-}
-
-.w-100 {
-  width: 100%;
-}
-
-.text-sm {
-  font-size: 0.75rem;
-}
-
-.text-muted {
-  color: #6c757d;
-}
-
-body.dark-theme .text-muted {
-  color: #a0aec0;
-}
-
-.mt-4 {
-  margin-top: 0.375rem;
-}
-
-.mb-2 {
-  margin-bottom: 0.5rem;
-}
+/* 卡片、视频容器、按钮样式已在全局 mobile-common.css 和 components.css 中定义 */
 
 .fa-3x {
   font-size: 2em;

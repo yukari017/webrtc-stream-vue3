@@ -6,6 +6,15 @@ import type {
   AudioDevice 
 } from '@/types/webrtc'
 
+/** 画质质量等级 */
+export type QualityTier = 'low' | 'medium' | 'high'
+
+export interface AdaptiveBitrateState {
+  enabled: boolean
+  currentBitrateKbps: number
+  qualityTier: QualityTier
+}
+
 interface WebRTCState {
   // 连接状态
   isConnected: boolean
@@ -41,6 +50,9 @@ interface WebRTCState {
   
   // 性能监控
   performance: PerformanceData
+
+  // 自适应码率
+  adaptiveBitrate: AdaptiveBitrateState
 }
 
 export const useWebRTCStore = defineStore('webrtc', {
@@ -90,6 +102,13 @@ export const useWebRTCStore = defineStore('webrtc', {
       framerate: 0,
       packetLoss: 0,
       rtt: 0
+    },
+
+    // 自适应码率
+    adaptiveBitrate: {
+      enabled: false,
+      currentBitrateKbps: 0,
+      qualityTier: 'high'
     }
   }),
   
@@ -226,6 +245,11 @@ export const useWebRTCStore = defineStore('webrtc', {
     // 重置ICE重启计数
     resetIceRestartAttempts() {
       this.iceRestartAttempts = 0
+    },
+
+    // 更新自适应码率状态
+    updateAdaptiveBitrate(data: Partial<AdaptiveBitrateState>) {
+      this.adaptiveBitrate = { ...this.adaptiveBitrate, ...data }
     },
     
     // 清理所有资源

@@ -164,9 +164,12 @@ export function useMediaStream() {
   // 刷新音频设备列表
   const refreshAudioDevices = async (force = false): Promise<AudioDevice[]> => {
     try {
-      // 检测权限状态
+      // 检测权限状态（仅在 force 或首次时打印日志）
       const permissionStatus = await navigator.permissions.query({ name: 'microphone' as PermissionName })
-      console.log('麦克风权限状态:', permissionStatus.state)
+      
+      if (force) {
+        console.log('麦克风权限状态:', permissionStatus.state)
+      }
       
       // 如果权限被拒绝，提示用户
       if (permissionStatus.state === 'denied') {
