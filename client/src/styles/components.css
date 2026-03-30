@@ -30,7 +30,7 @@
 
 /* 按钮颜色变体 - 统一渐变样式 */
 
-/* 淡蓝色 - 次要操作（生成、清空、刷新） */
+/* 淡蓝�?- 次要操作（生成、清空、刷新） */
 .btn-secondary {
   background: linear-gradient(135deg, var(--btn-secondary-bg-start) 0%, var(--btn-secondary-bg-end) 100%);
   color: var(--btn-secondary-color);
@@ -58,7 +58,7 @@
   transform: translateY(-1px);
 }
 
-/* 淡粉色 - 危险操作（离开、停止） */
+/* 淡粉�?- 危险操作（离开、停止） */
 .btn-danger {
   background: linear-gradient(135deg, var(--btn-danger-bg-start) 0%, var(--btn-danger-bg-end) 100%);
   color: var(--btn-danger-color);
@@ -94,7 +94,7 @@
 }
 
 body.dark-theme .card {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-md);
 }
 
 .card-header {
@@ -150,7 +150,7 @@ body.dark-theme .form-control {
 .form-control:focus {
   outline: none;
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(251, 114, 153, 0.15);
+  box-shadow: 0 0 0 3px var(--primary-shadow-light);
 }
 
 .form-control:disabled {
@@ -173,7 +173,7 @@ body.dark-theme .form-control:disabled {
   min-width: 0;
 }
 
-/* 选择框 */
+/* 选择�?*/
 .select-wrapper {
   position: relative;
 }
@@ -338,7 +338,7 @@ body.dark-theme .status-indicator.error {
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  background: rgba(0, 0, 0, 0.7);
+  background: var(--overlay-bg);
   color: white;
   padding: 2rem;
   text-align: center;
@@ -346,7 +346,7 @@ body.dark-theme .status-indicator.error {
 }
 
 .video-overlay i {
-  color: rgba(255, 255, 255, 0.8);
+  color: var(--overlay-text);
 }
 
 .video-overlay p {
@@ -360,7 +360,7 @@ body.dark-theme .status-indicator.error {
   left: 0;
   right: 0;
   padding: 1rem;
-  background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
+  background: var(--overlay-gradient);
   display: flex;
   justify-content: center;
   gap: 1rem;
@@ -402,7 +402,7 @@ body.dark-theme .status-indicator.error {
   left: 50%;
   transform: translateX(-50%);
   padding: 0.5rem 0.75rem;
-  background: rgba(0, 0, 0, 0.8);
+  background: var(--overlay-bg-heavy);
   color: white;
   border-radius: 4px;
   font-size: 0.875rem;
@@ -429,7 +429,7 @@ body.dark-theme .status-indicator.error {
   border-radius: 50%;
   background: var(--secondary);
   cursor: pointer;
-  box-shadow: 0 2px 6px rgba(96, 165, 250, 0.4);
+  box-shadow: 0 2px 6px var(--secondary-shadow);
 }
 
 .volume-slider::-moz-range-thumb {
@@ -439,7 +439,7 @@ body.dark-theme .status-indicator.error {
   background: var(--secondary);
   cursor: pointer;
   border: none;
-  box-shadow: 0 2px 6px rgba(96, 165, 250, 0.4);
+  box-shadow: 0 2px 6px var(--secondary-shadow);
 }
 
 .slider-value {
@@ -449,7 +449,7 @@ body.dark-theme .status-indicator.error {
   color: var(--text-muted);
 }
 
-/* 响应式 */
+/* 响应�?*/
 @media (max-width: 768px) {
   .btn {
     padding: 0.5rem 1rem;
@@ -465,7 +465,7 @@ body.dark-theme .status-indicator.error {
   }
 }
 
-/* 聊天组件样式 - 桌面端和移动端共用 */
+/* 聊天组件样式 - 桌面端和移动端共�?*/
 
 /* 聊天消息 */
 .chat-message {
@@ -577,7 +577,7 @@ body.dark-theme .message-content {
   align-items: flex-end;
 }
 
-/* 聊天输入区 */
+/* 聊天输入�?*/
 .chat-input {
   display: flex;
   gap: 0.5rem;
@@ -597,10 +597,10 @@ body.dark-theme .message-content {
 .chat-input .form-control:focus {
   outline: none;
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(251, 114, 153, 0.15);
+  box-shadow: 0 0 0 3px var(--primary-shadow-light);
 }
 
-/* 发送按钮 */
+/* 发送按�?*/
 .send-btn {
   width: 40px;
   height: 40px;
@@ -630,7 +630,7 @@ body.dark-theme .message-content {
   box-shadow: none;
 }
 
-/* 聊天空状态 */
+/* 聊天空状�?*/
 .chat-empty {
   text-align: center;
   padding: 2rem 1rem;
@@ -659,3 +659,4 @@ body.dark-theme .message-content {
   min-width: 20px;
   text-align: center;
 }
+

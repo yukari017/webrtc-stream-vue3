@@ -67,7 +67,17 @@
   --btn-warning-shadow: rgba(251, 191, 36, 0.3);
   --btn-warning-shadow-hover: rgba(251, 191, 36, 0.4);
   
-  /* 移动端背景色 */
+  /* 遮罩层 */
+  --overlay-bg: rgba(0, 0, 0, 0.7);
+  --overlay-bg-heavy: rgba(0, 0, 0, 0.8);
+  --overlay-text: rgba(255, 255, 255, 0.8);
+  --overlay-gradient: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
+  
+  /* 次要按钮阴影（slider thumb 等） */
+  --secondary-shadow: rgba(96, 165, 250, 0.4);
+  
+  /* 主色淡阴影 */
+  --primary-shadow-light: rgba(251, 114, 153, 0.15);
   --mobile-bg-light: #f5f5f5;
   --mobile-bg-dark: #1a1a1a;
   --mobile-header-shadow: rgba(251, 114, 153, 0.3);
