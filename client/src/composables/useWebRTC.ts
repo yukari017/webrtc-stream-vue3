@@ -674,6 +674,12 @@ export function useWebRTC() {
     const pc = store.peerConnection
     if (!pc) return
 
+    // 只有推流端发起 ICE restart offer，观看端等对端 offer 后自动应答
+    if (!store.isStreaming) {
+      store.updateStatus('观看端等待对端发起 ICE restart', 'info')
+      return
+    }
+
     try {
       const offer = await pc.createOffer({ iceRestart: true })
       await pc.setLocalDescription(offer)

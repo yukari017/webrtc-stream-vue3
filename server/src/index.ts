@@ -43,7 +43,8 @@ roomManager.startCleanup()
 const messageHandler = new MessageHandler(roomManager)
 
 // 统计变量
-let totalConnections = 0
+let totalConnectionsEver = 0   // 历史累计连接数（只增不减）
+let activeConnections = 0      // 当前活跃连接数
 
 // 健康检查端点
 app.get('/health', (_req: Request, res: Response) => {
@@ -51,6 +52,8 @@ app.get('/health', (_req: Request, res: Response) => {
   res.json({
     status: 'ok',
     uptime: process.uptime(),
+    totalConnectionsEver,
+    activeConnections,
     ...stats
   })
 })
@@ -59,7 +62,8 @@ app.get('/health', (_req: Request, res: Response) => {
 app.get('/stats', (_req: Request, res: Response) => {
   const { rooms, clients } = roomManager.getStats()
   const stats: ServerStats = {
-    totalConnections,
+    totalConnections: totalConnectionsEver,
+    activeConnections,
     activeRooms: rooms,
     activeClients: clients,
     uptime: process.uptime()
@@ -114,7 +118,8 @@ wss.on('connection', (ws: WebSocket, req) => {
   })
   
   logger.info(`新客户端连接: ${clientId}, 尝试加入房间: ${roomId}`)
-  totalConnections++
+  totalConnectionsEver++
+  activeConnections++
   
   // 尝试加入房间
   const result = roomManager.joinRoom(extWs, roomId)
@@ -146,12 +151,13 @@ wss.on('connection', (ws: WebSocket, req) => {
   // 关闭处理
   extWs.on('close', (code: number, reason: Buffer) => {
     logger.info(`客户端断开: ${clientId}, 房间: ${roomId}, code=${code}, reason=${reason.toString()}`)
-    
+
     // 先广播（此时房间仍存在），再离开（可能触发房间删除）
     // 顺序不能颠倒：leaveRoom 在最后一人离开时会删除房间，broadcast 会静默失败
     roomManager.broadcast(roomId, { type: 'peer-disconnected' })
-    
+
     roomManager.leaveRoom(extWs)
+    activeConnections--
   })
   
   // 错误处理
