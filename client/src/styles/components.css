@@ -107,7 +107,7 @@ body.dark-theme .card {
 }
 
 body.dark-theme .card-header {
-  border-bottom-color: #4a5568;
+  border-bottom-color: var(--border-color);
 }
 
 .card-title {
@@ -129,7 +129,7 @@ body.dark-theme .card-header {
 }
 
 body.dark-theme .form-label {
-  color: #a0aec0;
+  color: var(--text-secondary);
 }
 
 .form-control {
@@ -144,7 +144,7 @@ body.dark-theme .form-label {
 }
 
 body.dark-theme .form-control {
-  border-color: #718096;
+  border-color: var(--border-color-dark);
 }
 
 .form-control:focus {
@@ -154,7 +154,7 @@ body.dark-theme .form-control {
 }
 
 .form-control:disabled {
-  background: #f7fafc;
+  background: var(--bg-tertiary);
   cursor: not-allowed;
 }
 
@@ -205,9 +205,9 @@ body.dark-theme .select-wrapper select {
   -webkit-appearance: none;
   width: 1.25rem;
   height: 1.25rem;
-  border: 2px solid #cbd5e0;
+  border: 2px solid var(--border-color-dark);
   border-radius: 4px;
-  background: white;
+  background: var(--bg-primary);
   cursor: pointer;
   position: relative;
   transition: all 0.2s ease;
@@ -387,7 +387,7 @@ body.dark-theme .status-indicator.error {
 }
 
 .placeholder-content i {
-  color: #adb5bd;
+  color: var(--text-muted);
 }
 
 /* 工具提示 */
@@ -416,7 +416,7 @@ body.dark-theme .status-indicator.error {
   width: 100%;
   height: 6px;
   border-radius: 3px;
-  background: #e9ecef;
+  background: var(--bg-tertiary);
   outline: none;
   -webkit-appearance: none;
 }
@@ -559,16 +559,16 @@ body.dark-theme .status-indicator.error {
 }
 
 body.dark-theme .message-content {
-  background: #4a5568;
+  background: var(--bg-secondary);
   color: var(--text-primary);
 }
 
 .own-message .message-content {
-  background: linear-gradient(135deg, #fb7299 0%, #fc8bab 100%);
+  background: linear-gradient(135deg, var(--btn-primary-bg-start) 0%, var(--btn-primary-bg-end) 100%);
   color: white;
   border-top-left-radius: 12px;
   border-top-right-radius: 4px;
-  box-shadow: 0 2px 8px rgba(251, 114, 153, 0.3);
+  box-shadow: 0 2px 8px var(--btn-primary-shadow);
 }
 
 .own-message .message-body {
@@ -610,7 +610,7 @@ body.dark-theme .message-content {
   justify-content: center;
   padding: 0;
   flex-shrink: 0;
-  background: linear-gradient(135deg, #fb7299 0%, #fc8bab 100%);
+  background: linear-gradient(135deg, var(--btn-primary-bg-start) 0%, var(--btn-primary-bg-end) 100%);
   border: none;
   color: white;
   transition: all 0.2s ease;
@@ -618,9 +618,9 @@ body.dark-theme .message-content {
 }
 
 .send-btn:hover:not(:disabled) {
-  background: linear-gradient(135deg, #fc8bab 0%, #fb7299 100%);
+  background: linear-gradient(135deg, var(--btn-primary-bg-hover-start) 0%, var(--btn-primary-bg-hover-end) 100%);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(251, 114, 153, 0.4);
+  box-shadow: 0 4px 12px var(--btn-primary-shadow-hover);
 }
 
 .send-btn:disabled {
@@ -638,7 +638,7 @@ body.dark-theme .message-content {
 }
 
 .chat-empty i {
-  color: #cbd5e0;
+  color: var(--border-color-dark);
   margin-bottom: 0.5rem;
   opacity: 0.5;
 }
@@ -650,7 +650,7 @@ body.dark-theme .message-content {
 
 /* 未读徽章 */
 .chat-badge {
-  background: linear-gradient(135deg, #fb7299 0%, #fc8bab 100%);
+  background: linear-gradient(135deg, var(--btn-primary-bg-start) 0%, var(--btn-primary-bg-end) 100%);
   color: white;
   font-size: 0.75rem;
   padding: 0.125rem 0.5rem;
