@@ -100,8 +100,8 @@ function computeTargetBitrate(
   // ── 冷却期：不决策 ─────────────────────────────────────────
   if (inCooldown) return currentKbps
 
-  // ── 降码率 ─────────────────────────────────────────────────
-  if (packetLoss > 5 || rtt > 300 || packetLoss > 3) {
+  // ── 降码率：丢包 > 5% 或 RTT > 300ms（对应注释中的 low 区间） ──────
+  if (packetLoss > 5 || rtt > 300) {
     if (consecutiveDowngrades >= MAX_CONSECUTIVE_DOWNGRADES) {
       return Math.max(currentKbps, MIN_BITRATE_KBPS)
     }
@@ -150,7 +150,8 @@ function computeTargetBitrate(
     encoderConstrainedWarned = true
   }
 
-  // ── 网络好转时恢复连续降级计数 ──────────────────────────────
+  // ── 网络处于 medium 区间（丢包 1-5% 或 RTT 80-300ms）时缓慢恢复降级计数 ──
+  // low 区间已在上方 return，能走到这里的只有 medium
   if (!isHighQuality) {
     consecutiveDowngrades = Math.max(0, consecutiveDowngrades - 1)
   }
