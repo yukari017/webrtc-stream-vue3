@@ -53,7 +53,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useWebRTCStore } from '@/stores'
-import { useWebRTC } from '@/composables/useWebRTC'
 import { useChat } from '@/composables/useChat'
 import { eventBus } from '@/utils/eventBus'
 import MobileTabBar from '@/components/mobile/MobileTabBar.vue'
@@ -65,7 +64,6 @@ import ViewerMobileSettingsTab from './ViewerMobileSettingsTab.vue'
 type TabId = 'stream' | 'settings' | 'chat' | 'log'
 
 const store = useWebRTCStore()
-const webrtc = useWebRTC()
 const chat = useChat()
 
 const activeTab = ref<TabId>('stream')
@@ -130,7 +128,8 @@ onMounted(() => {
 
 onUnmounted(() => {
   eventBus.off('data-channel-message', onNewChatMessage)
-  webrtc.stopStreaming()
+  // Viewer.vue 的 onUnmounted 已调用 leaveRoom() → webrtc.stopStreaming()
+  // 这里只需清理 store 状态，避免重复 close PeerConnection
   store.cleanup()
 })
 </script>

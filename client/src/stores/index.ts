@@ -58,6 +58,7 @@ interface WebRTCState {
   // 聊天
   chatMessages: LocalChatMessage[]
   chatNewMessage: string
+  chatIsSending: boolean
 }
 
 export const useWebRTCStore = defineStore('webrtc', {
@@ -118,7 +119,8 @@ export const useWebRTCStore = defineStore('webrtc', {
 
     // 聊天
     chatMessages: [],
-    chatNewMessage: ''
+    chatNewMessage: '',
+    chatIsSending: false
   }),
   
   actions: {
@@ -271,15 +273,26 @@ export const useWebRTCStore = defineStore('webrtc', {
       }
     },
 
+    /** 按 id 删除一条消息（用于乐观更新失败时回滚） */
+    removeChatMessage(id: string) {
+      this.chatMessages = this.chatMessages.filter(m => m.id !== id)
+    },
+
     /** 清空聊天记录（换房间 / 断开连接时调用） */
     clearChatMessages() {
       this.chatMessages = []
       this.chatNewMessage = ''
+      this.chatIsSending = false
     },
 
     /** 更新输入框草稿 */
     setChatNewMessage(text: string) {
       this.chatNewMessage = text
+    },
+
+    /** 更新发送中标志位 */
+    setChatIsSending(sending: boolean) {
+      this.chatIsSending = sending
     },
     
     // 清理所有资源

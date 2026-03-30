@@ -384,10 +384,6 @@ const stopAll = () => {
   store.cleanup() // cleanup() 内部已调用 clearChatMessages()
   streamType.value = 'screen'
   sessionStorage.removeItem('streamerRoomId')
-  
-  if (store.isStreaming) {
-    generateRoomIdHandler()
-  }
 }
 
 const refreshAudioDevices = async () => {
