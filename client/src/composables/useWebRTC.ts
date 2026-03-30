@@ -18,7 +18,10 @@ import {
 } from '@/utils/config'
 
 /** ICE Candidate 暂存最大容量，防止内存耗尽 */
-const MAX_PENDING_CANDIDATES = 10
+const MAX_PENDING_CANDIDATES = 50
+
+/** ICE Candidate 暂存超时时间（毫秒），超过此时间的候选会被清理 */
+const PENDING_CANDIDATE_TIMEOUT_MS = 30_000
 
 export function useWebRTC() {
   const store = useWebRTCStore()
@@ -377,14 +380,6 @@ export function useWebRTC() {
     const pc = store.peerConnection
     if (!pc) return
 
-    // 容量保护：超出上限时丢弃最旧的
-    if (pendingIceCandidates.value.length >= MAX_PENDING_CANDIDATES) {
-      pendingIceCandidates.value.shift()
-      console.warn(
-        `pendingIceCandidates 超过上限 ${MAX_PENDING_CANDIDATES}，丢弃最旧的候选`
-      )
-    }
-
     if (pc.remoteDescription) {
       try {
         await pc.addIceCandidate(new RTCIceCandidate(candidate))
@@ -406,7 +401,23 @@ export function useWebRTC() {
       }
     } else {
       // 暂存，带时间戳供后续清理
-      pendingIceCandidates.value.push({ candidate, ts: Date.now() })
+      const now = Date.now()
+      
+      // 清理超时的候选（超过 30s 的丢弃）
+      pendingIceCandidates.value = pendingIceCandidates.value.filter(
+        item => now - item.ts < PENDING_CANDIDATE_TIMEOUT_MS
+      )
+      
+      // 容量保护：超出上限时丢弃最旧的
+      if (pendingIceCandidates.value.length >= MAX_PENDING_CANDIDATES) {
+        const dropped = pendingIceCandidates.value.shift()
+        console.warn(
+          `[ICE] pendingIceCandidates 超过上限 ${MAX_PENDING_CANDIDATES}，` +
+          `丢弃最旧的候选 (age: ${now - dropped!.ts}ms)`
+        )
+      }
+      
+      pendingIceCandidates.value.push({ candidate, ts: now })
     }
   }
 
