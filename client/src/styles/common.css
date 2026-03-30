@@ -123,6 +123,11 @@
   container-type: inline-size;
 }
 
+.stream-btn-group .btn {
+  font-size: 0.875rem;
+  padding: 0.5rem 0.875rem;
+}
+
 /* 暗色主题覆盖 */
 body.dark-theme .page-header h2 {
   background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
