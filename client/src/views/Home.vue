@@ -41,23 +41,23 @@
             </div>
             
             <div class="stream-controls mt-4">
-              <div class="flex gap-2">
+              <div class="flex gap-2 stream-btn-group">
                 <!-- 桌面端：显示屏幕共享 + 摄像头 -->
                 <template v-if="!isMobileDevice">
                   <button class="btn btn-primary flex-1" @click="getScreenStream" :disabled="isStreaming">
                     <i class="fas fa-desktop"></i>
-                    {{ isGettingStream ? '获取中...' : '屏幕共享' }}
+                    <span class="btn-text">{{ isGettingStream ? '获取中...' : '屏幕共享' }}</span>
                   </button>
                   <button class="btn btn-secondary flex-1" @click="getCameraStream(); streamType = 'camera'" :disabled="isGettingStream || isStreaming">
                     <i class="fas fa-camera"></i>
-                    {{ isGettingStream ? '获取中...' : '摄像头' }}
+                    <span class="btn-text">{{ isGettingStream ? '获取中...' : '摄像头' }}</span>
                   </button>
                 </template>
                 <!-- 移动端：只显示获取摄像头 -->
                 <template v-else>
                   <button class="btn btn-primary flex-1" @click="getCameraStream" :disabled="isGettingStream || isStreaming">
                     <i class="fas fa-camera"></i>
-                    {{ isGettingStream ? '获取中...' : '获取摄像头' }}
+                    <span class="btn-text">{{ isGettingStream ? '获取中...' : '获取摄像头' }}</span>
                   </button>
                 </template>
                 <button 
@@ -66,7 +66,7 @@
                   :disabled="!roomId || (!localStream && !store.screenStream) || isStreaming"
                 >
                   <i class="fas fa-play"></i>
-                  开始推流
+                  <span class="btn-text">开始推流</span>
                 </button>
                 <button 
                   class="btn btn-danger flex-1" 
@@ -74,7 +74,7 @@
                   :disabled="!localStream && !store.screenStream && !isStreaming"
                 >
                   <i class="fas fa-stop"></i>
-                  停止
+                  <span class="btn-text">停止</span>
                 </button>
               </div>
             </div>
