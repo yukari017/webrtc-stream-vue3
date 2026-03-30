@@ -145,6 +145,7 @@ wss.on('connection', (ws: WebSocket, req) => {
   // 消息处理
   extWs.on('message', (data: RawData) => {
     const rawMessage = typeof data === 'string' ? data : data.toString()
+    roomManager.updateActivity(roomId) // 收到消息即刷新活动时间
     messageHandler.handle(extWs, rawMessage)
   })
   

@@ -93,12 +93,24 @@ export class RoomManager {
   }
 
   /**
+   * 更新房间活动时间戳
+   * 在消息交互时调用，防止活跃房间被误判为空闲
+   */
+  updateActivity(roomId: string): void {
+    const room = this.rooms.get(roomId)
+    if (room) {
+      room.lastActivity = Date.now()
+    }
+  }
+
+  /**
    * 广播消息到房间（排除 sender）
    */
   broadcast(roomId: string, message: unknown, sender?: ExtWebSocket): void {
     const room = this.rooms.get(roomId)
     if (!room) return
 
+    room.lastActivity = Date.now() // 消息交互算活动
     const data = JSON.stringify(message)
 
     room.clients.forEach(client => {
@@ -116,6 +128,7 @@ export class RoomManager {
     const room = this.rooms.get(roomId)
     if (!room) return
 
+    room.lastActivity = Date.now() // 消息交互算活动
     const data = JSON.stringify(message)
 
     for (const client of room.clients) {
