@@ -200,11 +200,6 @@ export async function getAudioDevices(force = false, ensurePermission = false): 
   deviceCache.devices = validDevices.length > 0 ? validDevices : audioDevices
   deviceCache.timestamp = now
   
-  // 仅在设备数量变化或首次检测时打印
-  if (previousCount !== deviceCache.devices.length || force) {
-    console.log(`发现 ${audioDevices.length} 个音频设备，有效 ${validDevices.length} 个`)
-  }
-  
   return deviceCache.devices
 }
 
@@ -230,17 +225,13 @@ export async function getScreenStream(options: ScreenStreamOptions = {}): Promis
     onAndroidTablet = IS_ANDROID_TABLET
   } = options
 
-  console.log('getScreenStream 调用，参数:', options)
-  
   const resolutionConstraints = getResolutionConstraints(resolution)
-  console.log('分辨率约束:', resolutionConstraints)
   
   let usedResolution = resolutionConstraints
   let usedFrameRate = frameRate
   if (onAndroidTablet) {
     usedResolution = { width: { ideal: 1280, max: 1920 }, height: { ideal: 720, max: 1080 } }
     usedFrameRate = Math.min(frameRate, 30)
-    console.log('Android平板模式，调整参数:', { usedResolution, usedFrameRate })
   }
 
   const constraints: MediaStreamConstraints & { audio?: boolean; video: MediaTrackConstraints & { cursor?: string } } = {
@@ -266,16 +257,12 @@ export async function getScreenStream(options: ScreenStreamOptions = {}): Promis
     (constraints.video as MediaTrackConstraints & { cursor?: string }).cursor = 'always'
   }
 
-  console.log('屏幕共享约束条件:', constraints)
-  
   let stream: MediaStream | null = null
   let screenShareFailedReason: string | null = null
   
   if (navigator.mediaDevices && typeof navigator.mediaDevices.getDisplayMedia === 'function') {
-    console.log('浏览器支持 getDisplayMedia，尝试获取屏幕共享...')
     try {
       stream = await navigator.mediaDevices.getDisplayMedia(constraints)
-      console.log('getDisplayMedia 成功')
     } catch (err) {
       const error = err as Error
       // 用户取消选择（常见）或浏览器不支持
@@ -298,7 +285,6 @@ export async function getScreenStream(options: ScreenStreamOptions = {}): Promis
 
   if (!stream) {
     // 尝试回退到后置摄像头（Android/iOS 移动端场景）
-    console.log('尝试回退到后置摄像头...')
     try {
       const cameraConstraints: MediaStreamConstraints = {
         video: {
@@ -311,7 +297,6 @@ export async function getScreenStream(options: ScreenStreamOptions = {}): Promis
       }
       
       stream = await navigator.mediaDevices.getUserMedia(cameraConstraints)
-      console.log('摄像头回退成功，标记为非屏幕共享模式')
     } catch (camErr) {
       const camError = camErr as Error
       const baseMsg = screenShareFailedReason 
@@ -366,11 +351,9 @@ export async function getAudioStream(deviceId: string | null, options: AudioStre
   }
 
   try {
-    console.log('尝试获取音频流，约束:', audioConstraints)
     const stream = await navigator.mediaDevices.getUserMedia({
       audio: audioConstraints
     })
-    console.log('音频流获取成功:', stream.getAudioTracks()[0]?.label)
     return stream
   } catch (error) {
     console.warn('获取音频流失败（精确匹配），尝试使用默认设备:', error)
@@ -384,7 +367,6 @@ export async function getAudioStream(deviceId: string | null, options: AudioStre
           autoGainControl
         }
       })
-      console.log('使用默认音频设备成功:', fallbackStream.getAudioTracks()[0]?.label)
       return fallbackStream
     } catch (fallbackError) {
       console.error('获取音频流最终失败:', fallbackError)
@@ -489,9 +471,6 @@ export async function applySenderParameters(
     params.encodings = newEncodings
 
     await sender.setParameters(params)
-    console.log(
-      `视频编码器设置: ${codec.toUpperCase()}, 码率: ${targetBitrateKbps}kbps, scale: ${scaleDown}`
-    )
     return true
   } catch (error) {
     console.warn('无法应用 sender 参数:', error)
