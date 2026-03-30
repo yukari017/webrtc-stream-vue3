@@ -412,19 +412,8 @@ export function useWebRTC() {
     try {
       signaling.connectSignaling(roomId)
 
-      await new Promise<void>((resolve, reject) => {
-        const checkInterval = setInterval(() => {
-          if (store.isConnected) {
-            clearInterval(checkInterval)
-            resolve()
-          }
-        }, 100)
-
-        setTimeout(() => {
-          clearInterval(checkInterval)
-          reject(new Error('信令连接超时'))
-        }, 10000)
-      })
+      // 事件驱动等待，替代 setInterval 轮询
+      await signaling.waitForConnection()
 
       createPeerConnection()
 
@@ -493,19 +482,8 @@ export function useWebRTC() {
     try {
       signaling.connectSignaling(roomId)
 
-      await new Promise<void>((resolve, reject) => {
-        const checkInterval = setInterval(() => {
-          if (store.isConnected) {
-            clearInterval(checkInterval)
-            resolve()
-          }
-        }, 100)
-
-        setTimeout(() => {
-          clearInterval(checkInterval)
-          reject(new Error('信令连接超时'))
-        }, 10000)
-      })
+      // 事件驱动等待，替代 setInterval 轮询
+      await signaling.waitForConnection()
 
       createPeerConnection()
 
