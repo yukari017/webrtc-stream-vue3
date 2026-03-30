@@ -57,10 +57,11 @@ app.get('/health', (_req: Request, res: Response) => {
 
 // 统计端点
 app.get('/stats', (_req: Request, res: Response) => {
+  const { rooms, clients } = roomManager.getStats()
   const stats: ServerStats = {
     totalConnections,
-    activeRooms: roomManager.getStats().rooms,
-    activeClients: roomManager.getStats().clients,
+    activeRooms: rooms,
+    activeClients: clients,
     uptime: process.uptime()
   }
   res.json(stats)
@@ -146,10 +147,11 @@ wss.on('connection', (ws: WebSocket, req) => {
   extWs.on('close', (code: number, reason: Buffer) => {
     logger.info(`客户端断开: ${clientId}, 房间: ${roomId}, code=${code}, reason=${reason.toString()}`)
     
-    roomManager.leaveRoom(extWs)
-    
-    // 通知其他客户端
+    // 先广播（此时房间仍存在），再离开（可能触发房间删除）
+    // 顺序不能颠倒：leaveRoom 在最后一人离开时会删除房间，broadcast 会静默失败
     roomManager.broadcast(roomId, { type: 'peer-disconnected' })
+    
+    roomManager.leaveRoom(extWs)
   })
   
   // 错误处理
