@@ -32,55 +32,55 @@
 
 /* 淡蓝色 - 次要操作（生成、清空、刷新） */
 .btn-secondary {
-  background: linear-gradient(135deg, #7dd3fc 0%, #bae6fd 100%);
-  color: #0c4a6e;
-  box-shadow: 0 2px 8px rgba(125, 211, 252, 0.3);
+  background: linear-gradient(135deg, var(--btn-secondary-bg-start) 0%, var(--btn-secondary-bg-end) 100%);
+  color: var(--btn-secondary-color);
+  box-shadow: 0 2px 8px var(--btn-secondary-shadow);
 }
 
 .btn-secondary:hover:not(:disabled) {
-  background: linear-gradient(135deg, #bae6fd 0%, #e0f2fe 100%);
-  box-shadow: 0 4px 12px rgba(125, 211, 252, 0.4);
+  background: linear-gradient(135deg, var(--btn-secondary-bg-hover-start) 0%, var(--btn-secondary-bg-hover-end) 100%);
+  box-shadow: 0 4px 12px var(--btn-secondary-shadow-hover);
   transform: translateY(-1px);
 }
 
 /* 粉色 - 主要操作（加入、复制、开始） */
 .btn-primary,
 .btn-success {
-  background: linear-gradient(135deg, #fb7299 0%, #fc8bab 100%);
-  color: white;
-  box-shadow: 0 2px 8px rgba(251, 114, 153, 0.3);
+  background: linear-gradient(135deg, var(--btn-primary-bg-start) 0%, var(--btn-primary-bg-end) 100%);
+  color: var(--btn-primary-color);
+  box-shadow: 0 2px 8px var(--btn-primary-shadow);
 }
 
 .btn-primary:hover:not(:disabled),
 .btn-success:hover:not(:disabled) {
-  background: linear-gradient(135deg, #fc8bab 0%, #fda4c6 100%);
-  box-shadow: 0 4px 12px rgba(251, 114, 153, 0.4);
+  background: linear-gradient(135deg, var(--btn-primary-bg-hover-start) 0%, var(--btn-primary-bg-hover-end) 100%);
+  box-shadow: 0 4px 12px var(--btn-primary-shadow-hover);
   transform: translateY(-1px);
 }
 
 /* 淡粉色 - 危险操作（离开、停止） */
 .btn-danger {
-  background: linear-gradient(135deg, #fda4af 0%, #fecdd3 100%);
-  color: #9f1239;
-  box-shadow: 0 2px 8px rgba(253, 164, 175, 0.3);
+  background: linear-gradient(135deg, var(--btn-danger-bg-start) 0%, var(--btn-danger-bg-end) 100%);
+  color: var(--btn-danger-color);
+  box-shadow: 0 2px 8px var(--btn-danger-shadow);
 }
 
 .btn-danger:hover:not(:disabled) {
-  background: linear-gradient(135deg, #fecdd3 0%, #ffe4e6 100%);
-  box-shadow: 0 4px 12px rgba(253, 164, 175, 0.4);
+  background: linear-gradient(135deg, var(--btn-danger-bg-hover-start) 0%, var(--btn-danger-bg-hover-end) 100%);
+  box-shadow: 0 4px 12px var(--btn-danger-shadow-hover);
   transform: translateY(-1px);
 }
 
 /* 警告按钮 */
 .btn-warning {
-  background: linear-gradient(135deg, #fbbf24 0%, #fcd34d 100%);
-  color: #78350f;
-  box-shadow: 0 2px 8px rgba(251, 191, 36, 0.3);
+  background: linear-gradient(135deg, var(--btn-warning-bg-start) 0%, var(--btn-warning-bg-end) 100%);
+  color: var(--btn-warning-color);
+  box-shadow: 0 2px 8px var(--btn-warning-shadow);
 }
 
 .btn-warning:hover:not(:disabled) {
-  background: linear-gradient(135deg, #fcd34d 0%, #fde68a 100%);
-  box-shadow: 0 4px 12px rgba(251, 191, 36, 0.4);
+  background: linear-gradient(135deg, var(--btn-warning-bg-hover-start) 0%, var(--btn-warning-bg-hover-end) 100%);
+  box-shadow: 0 4px 12px var(--btn-warning-shadow-hover);
   transform: translateY(-1px);
 }
 
