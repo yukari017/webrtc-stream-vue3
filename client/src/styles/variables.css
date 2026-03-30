@@ -80,6 +80,25 @@
   --scrollbar-thumb-hover-light: #a8a8a8;
   --scrollbar-thumb-hover-dark: #718096;
   
+  /* Alert / Badge 颜色 */
+  --alert-success-bg: #c6f6d5;
+  --alert-success-color: #22543d;
+  --alert-success-border: #28a745;
+  --alert-danger-bg: #fed7d7;
+  --alert-danger-color: #742a2a;
+  --alert-danger-border: #dc3545;
+  --alert-warning-bg: #feebc8;
+  --alert-warning-color: #744210;
+  --alert-warning-border: #ffc107;
+  
+  /* 暗黑主题 Alert */
+  --alert-success-bg-dark: #22543d;
+  --alert-success-color-dark: #c6f6d5;
+  --alert-danger-bg-dark: #742a2a;
+  --alert-danger-color-dark: #fed7d7;
+  --alert-warning-bg-dark: #744210;
+  --alert-warning-color-dark: #feebc8;
+  
   /* 阴影 */
   --shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);

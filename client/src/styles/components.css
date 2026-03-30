@@ -260,55 +260,55 @@ body.dark-theme .select-wrapper select {
 }
 
 .status-indicator.online {
-  background: #c6f6d5;
-  color: #22543d;
+  background: var(--alert-success-bg);
+  color: var(--alert-success-color);
 }
 
 .status-indicator.online .status-dot {
-  background: #28a745;
+  background: var(--alert-success-border);
 }
 
 body.dark-theme .status-indicator.online {
-  background: #22543d;
-  color: #c6f6d5;
+  background: var(--alert-success-bg-dark);
+  color: var(--alert-success-color-dark);
 }
 
 .status-indicator.offline {
-  background: #fed7d7;
-  color: #742a2a;
+  background: var(--alert-danger-bg);
+  color: var(--alert-danger-color);
 }
 
 .status-indicator.offline .status-dot {
-  background: #dc3545;
+  background: var(--alert-danger-border);
 }
 
 body.dark-theme .status-indicator.offline {
-  background: #742a2a;
-  color: #fed7d7;
+  background: var(--alert-danger-bg-dark);
+  color: var(--alert-danger-color-dark);
 }
 
 .status-indicator.connecting {
-  background: #feebc8;
-  color: #744210;
+  background: var(--alert-warning-bg);
+  color: var(--alert-warning-color);
 }
 
 .status-indicator.connecting .status-dot {
-  background: #ffc107;
+  background: var(--alert-warning-border);
 }
 
 body.dark-theme .status-indicator.connecting {
-  background: #744210;
-  color: #feebc8;
+  background: var(--alert-warning-bg-dark);
+  color: var(--alert-warning-color-dark);
 }
 
 .status-indicator.error {
-  background: #fed7d7;
-  color: #742a2a;
+  background: var(--alert-danger-bg);
+  color: var(--alert-danger-color);
 }
 
 body.dark-theme .status-indicator.error {
-  background: #742a2a;
-  color: #fed7d7;
+  background: var(--alert-danger-bg-dark);
+  color: var(--alert-danger-color-dark);
 }
 
 /* 视频容器 */
