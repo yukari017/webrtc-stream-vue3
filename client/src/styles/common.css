@@ -118,20 +118,9 @@
   }
 }
 
-/* 推流控制按钮组：容器查询响应式 */
+/* 推流控制按钮组 */
 .stream-btn-group {
   container-type: inline-size;
-}
-
-.stream-btn-group .btn {
-  white-space: nowrap;
-}
-
-/* 容器宽度不足时隐藏按钮文字，退化为纯图标 */
-@container (max-width: 360px) {
-  .stream-btn-group .btn .btn-text {
-    display: none;
-  }
 }
 
 /* 暗色主题覆盖 */
