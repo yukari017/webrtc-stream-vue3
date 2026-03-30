@@ -412,17 +412,29 @@ export function useWebRTC() {
       pc.addTrack(track, stream)
     })
 
-    setTimeout(() => {
-      const senders = pc.getSenders()
-      const videoSender = senders.find(
+    // addTrack 后 sender.getParameters().encodings 尚未填充（协商未完成）
+    // 等信令状态回到 stable（offer/answer 交换完毕）再应用编码参数，替代 setTimeout 硬等
+    const applyOnStable = (): void => {
+      if (pc.signalingState !== 'stable') return
+      pc.removeEventListener('signalingstatechange', applyOnStable)
+
+      const videoSender = pc.getSenders().find(
         s => s.track && s.track.kind === 'video'
       )
-
       if (videoSender) {
         const targetBitrate = media.getTargetBitrate()
-        applySenderParameters(videoSender, targetBitrate)
+        applySenderParameters(videoSender, targetBitrate).catch(e => {
+          console.warn('applySenderParameters 失败:', e)
+        })
       }
-    }, 1000)
+    }
+
+    if (pc.signalingState === 'stable') {
+      // 已经是 stable（如 ICE restart 场景），直接应用
+      applyOnStable()
+    } else {
+      pc.addEventListener('signalingstatechange', applyOnStable)
+    }
 
     store.updateStatus('本地流已添加到 PeerConnection', 'info')
   }
