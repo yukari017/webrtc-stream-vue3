@@ -669,7 +669,8 @@ export function useWebRTC() {
 
   // ─── eventBus 事件订阅 ─────────────────────────────────────────────────
 
-  eventBus.on('room-ready', () => {
+  // 保存具名引用，onUnmounted 时用同一引用 off，防止监听器叠加泄漏
+  const onRoomReady = (): void => {
     if (store.isStreaming) {
       const pc = store.peerConnection
 
@@ -707,9 +708,9 @@ export function useWebRTC() {
         createAndSendOffer()
       }
     }
-  })
+  }
 
-  eventBus.on('message', (data: unknown) => {
+  const onMessage = (data: unknown): void => {
     const msg = data as Record<string, unknown>
     switch (msg.type) {
       case 'offer':
@@ -724,15 +725,24 @@ export function useWebRTC() {
       default:
         console.warn('未知消息类型:', msg.type)
     }
-  })
+  }
 
-  eventBus.on('peer-disconnected', () => {
+  const onPeerDisconnected = (): void => {
     eventBus.emit('connection-closed')
-  })
+  }
+
+  eventBus.on('room-ready', onRoomReady)
+  eventBus.on('message', onMessage)
+  eventBus.on('peer-disconnected', onPeerDisconnected)
 
   // ─── 清理 ───────────────────────────────────────────────────────────────
 
   onUnmounted(() => {
+    // 取消所有 eventBus 订阅，防止组件重挂载时监听器叠加
+    eventBus.off('room-ready', onRoomReady)
+    eventBus.off('message', onMessage)
+    eventBus.off('peer-disconnected', onPeerDisconnected)
+
     if (iceRestartTimer.value) {
       clearTimeout(iceRestartTimer.value)
     }
