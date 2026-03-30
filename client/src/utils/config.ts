@@ -3,17 +3,26 @@
 
 function getDefaultSignalingUrl(): string {
   if (typeof window === 'undefined') return ''
-  
-  const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:'
+
+  const isHttps = window.location.protocol === 'https:'
+  const protocol = isHttps ? 'wss:' : 'ws:'
   const host = window.location.hostname || 'localhost'
-  const port = import.meta.env.DEV ? '3001' : window.location.port || '3001'
-  
-  return `${protocol}//${host}:${port}`
+
+  if (import.meta.env.DEV) {
+    // 开发环境：固定连本地信令服务器端口
+    return `${protocol}//${host}:3001`
+  }
+
+  // 生产环境：跟随页面端口
+  // window.location.port 在标准端口（443/80）时为空字符串，此时不拼端口
+  const port = window.location.port
+  return port ? `${protocol}//${host}:${port}` : `${protocol}//${host}`
 }
 
-export const SIGNALING_SERVER_URL: string = 
-  import.meta.env.VITE_SIGNALING_SERVER_URL || 
-  (import.meta.env.DEV ? getDefaultSignalingUrl() : '')
+// 生产环境未配置 VITE_SIGNALING_SERVER_URL 时，回退到同源推断
+// 注意：生产部署建议显式配置 VITE_SIGNALING_SERVER_URL 以确保准确性
+export const SIGNALING_SERVER_URL: string =
+  import.meta.env.VITE_SIGNALING_SERVER_URL || getDefaultSignalingUrl()
 
 // 调试模式
 export const DEBUG: boolean = import.meta.env.VITE_DEBUG === 'true' || import.meta.env.DEV || false

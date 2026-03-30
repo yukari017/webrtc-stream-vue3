@@ -135,7 +135,8 @@ export interface ServerConfig {
 
 // 服务器统计
 export interface ServerStats {
-  totalConnections: number
+  totalConnections: number   // 历史累计连接数
+  activeConnections: number  // 当前活跃连接数
   activeRooms: number
   activeClients: number
   uptime: number

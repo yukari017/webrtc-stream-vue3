@@ -30,57 +30,44 @@
 
 /* 按钮颜色变体 - 统一渐变样式 */
 
-/* 淡蓝色 - 次要操作（生成、清空、刷新） */
+/* 淡蓝�?- 次要操作（生成、清空、刷新） */
 .btn-secondary {
-  background: linear-gradient(135deg, #7dd3fc 0%, #bae6fd 100%);
-  color: #0c4a6e;
-  box-shadow: 0 2px 8px rgba(125, 211, 252, 0.3);
+  background: linear-gradient(135deg, var(--btn-secondary-bg-start) 0%, var(--btn-secondary-bg-end) 100%);
+  color: var(--btn-secondary-color);
+  box-shadow: 0 2px 8px var(--btn-secondary-shadow);
 }
 
 .btn-secondary:hover:not(:disabled) {
-  background: linear-gradient(135deg, #bae6fd 0%, #e0f2fe 100%);
-  box-shadow: 0 4px 12px rgba(125, 211, 252, 0.4);
+  background: linear-gradient(135deg, var(--btn-secondary-bg-hover-start) 0%, var(--btn-secondary-bg-hover-end) 100%);
+  box-shadow: 0 4px 12px var(--btn-secondary-shadow-hover);
   transform: translateY(-1px);
 }
 
 /* 粉色 - 主要操作（加入、复制、开始） */
 .btn-primary,
 .btn-success {
-  background: linear-gradient(135deg, #fb7299 0%, #fc8bab 100%);
-  color: white;
-  box-shadow: 0 2px 8px rgba(251, 114, 153, 0.3);
+  background: linear-gradient(135deg, var(--btn-primary-bg-start) 0%, var(--btn-primary-bg-end) 100%);
+  color: var(--btn-primary-color);
+  box-shadow: 0 2px 8px var(--btn-primary-shadow);
 }
 
 .btn-primary:hover:not(:disabled),
 .btn-success:hover:not(:disabled) {
-  background: linear-gradient(135deg, #fc8bab 0%, #fda4c6 100%);
-  box-shadow: 0 4px 12px rgba(251, 114, 153, 0.4);
+  background: linear-gradient(135deg, var(--btn-primary-bg-hover-start) 0%, var(--btn-primary-bg-hover-end) 100%);
+  box-shadow: 0 4px 12px var(--btn-primary-shadow-hover);
   transform: translateY(-1px);
 }
 
-/* 淡粉色 - 危险操作（离开、停止） */
+/* 淡粉�?- 危险操作（离开、停止） */
 .btn-danger {
-  background: linear-gradient(135deg, #fda4af 0%, #fecdd3 100%);
-  color: #9f1239;
-  box-shadow: 0 2px 8px rgba(253, 164, 175, 0.3);
+  background: linear-gradient(135deg, var(--btn-danger-bg-start) 0%, var(--btn-danger-bg-end) 100%);
+  color: var(--btn-danger-color);
+  box-shadow: 0 2px 8px var(--btn-danger-shadow);
 }
 
 .btn-danger:hover:not(:disabled) {
-  background: linear-gradient(135deg, #fecdd3 0%, #ffe4e6 100%);
-  box-shadow: 0 4px 12px rgba(253, 164, 175, 0.4);
-  transform: translateY(-1px);
-}
-
-/* 警告按钮 */
-.btn-warning {
-  background: linear-gradient(135deg, #fbbf24 0%, #fcd34d 100%);
-  color: #78350f;
-  box-shadow: 0 2px 8px rgba(251, 191, 36, 0.3);
-}
-
-.btn-warning:hover:not(:disabled) {
-  background: linear-gradient(135deg, #fcd34d 0%, #fde68a 100%);
-  box-shadow: 0 4px 12px rgba(251, 191, 36, 0.4);
+  background: linear-gradient(135deg, var(--btn-danger-bg-hover-start) 0%, var(--btn-danger-bg-hover-end) 100%);
+  box-shadow: 0 4px 12px var(--btn-danger-shadow-hover);
   transform: translateY(-1px);
 }
 
@@ -94,7 +81,7 @@
 }
 
 body.dark-theme .card {
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3);
+  box-shadow: var(--shadow-md);
 }
 
 .card-header {
@@ -107,7 +94,7 @@ body.dark-theme .card {
 }
 
 body.dark-theme .card-header {
-  border-bottom-color: #4a5568;
+  border-bottom-color: var(--border-color);
 }
 
 .card-title {
@@ -129,7 +116,7 @@ body.dark-theme .card-header {
 }
 
 body.dark-theme .form-label {
-  color: #a0aec0;
+  color: var(--text-secondary);
 }
 
 .form-control {
@@ -144,22 +131,22 @@ body.dark-theme .form-label {
 }
 
 body.dark-theme .form-control {
-  border-color: #718096;
+  border-color: var(--border-color-dark);
 }
 
 .form-control:focus {
   outline: none;
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(251, 114, 153, 0.15);
+  box-shadow: 0 0 0 3px var(--primary-shadow-light);
 }
 
 .form-control:disabled {
-  background: #f7fafc;
+  background: var(--bg-tertiary);
   cursor: not-allowed;
 }
 
 body.dark-theme .form-control:disabled {
-  background: #4a5568;
+  background: var(--bg-secondary);
   opacity: 0.6;
 }
 
@@ -173,7 +160,7 @@ body.dark-theme .form-control:disabled {
   min-width: 0;
 }
 
-/* 选择框 */
+/* 选择�?*/
 .select-wrapper {
   position: relative;
 }
@@ -205,9 +192,9 @@ body.dark-theme .select-wrapper select {
   -webkit-appearance: none;
   width: 1.25rem;
   height: 1.25rem;
-  border: 2px solid #cbd5e0;
+  border: 2px solid var(--border-color-dark);
   border-radius: 4px;
-  background: white;
+  background: var(--bg-primary);
   cursor: pointer;
   position: relative;
   transition: all 0.2s ease;
@@ -260,55 +247,55 @@ body.dark-theme .select-wrapper select {
 }
 
 .status-indicator.online {
-  background: #c6f6d5;
-  color: #22543d;
+  background: var(--alert-success-bg);
+  color: var(--alert-success-color);
 }
 
 .status-indicator.online .status-dot {
-  background: #28a745;
+  background: var(--alert-success-border);
 }
 
 body.dark-theme .status-indicator.online {
-  background: #22543d;
-  color: #c6f6d5;
+  background: var(--alert-success-bg-dark);
+  color: var(--alert-success-color-dark);
 }
 
 .status-indicator.offline {
-  background: #fed7d7;
-  color: #742a2a;
+  background: var(--alert-danger-bg);
+  color: var(--alert-danger-color);
 }
 
 .status-indicator.offline .status-dot {
-  background: #dc3545;
+  background: var(--alert-danger-border);
 }
 
 body.dark-theme .status-indicator.offline {
-  background: #742a2a;
-  color: #fed7d7;
+  background: var(--alert-danger-bg-dark);
+  color: var(--alert-danger-color-dark);
 }
 
 .status-indicator.connecting {
-  background: #feebc8;
-  color: #744210;
+  background: var(--alert-warning-bg);
+  color: var(--alert-warning-color);
 }
 
 .status-indicator.connecting .status-dot {
-  background: #ffc107;
+  background: var(--alert-warning-border);
 }
 
 body.dark-theme .status-indicator.connecting {
-  background: #744210;
-  color: #feebc8;
+  background: var(--alert-warning-bg-dark);
+  color: var(--alert-warning-color-dark);
 }
 
 .status-indicator.error {
-  background: #fed7d7;
-  color: #742a2a;
+  background: var(--alert-danger-bg);
+  color: var(--alert-danger-color);
 }
 
 body.dark-theme .status-indicator.error {
-  background: #742a2a;
-  color: #fed7d7;
+  background: var(--alert-danger-bg-dark);
+  color: var(--alert-danger-color-dark);
 }
 
 /* 视频容器 */
@@ -338,7 +325,7 @@ body.dark-theme .status-indicator.error {
   flex-direction: column;
   justify-content: center;
   align-items: center;
-  background: rgba(0, 0, 0, 0.7);
+  background: var(--overlay-bg);
   color: white;
   padding: 2rem;
   text-align: center;
@@ -346,7 +333,7 @@ body.dark-theme .status-indicator.error {
 }
 
 .video-overlay i {
-  color: rgba(255, 255, 255, 0.8);
+  color: var(--overlay-text);
 }
 
 .video-overlay p {
@@ -360,7 +347,7 @@ body.dark-theme .status-indicator.error {
   left: 0;
   right: 0;
   padding: 1rem;
-  background: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
+  background: var(--overlay-gradient);
   display: flex;
   justify-content: center;
   gap: 1rem;
@@ -387,7 +374,7 @@ body.dark-theme .status-indicator.error {
 }
 
 .placeholder-content i {
-  color: #adb5bd;
+  color: var(--text-muted);
 }
 
 /* 工具提示 */
@@ -402,7 +389,7 @@ body.dark-theme .status-indicator.error {
   left: 50%;
   transform: translateX(-50%);
   padding: 0.5rem 0.75rem;
-  background: rgba(0, 0, 0, 0.8);
+  background: var(--overlay-bg-heavy);
   color: white;
   border-radius: 4px;
   font-size: 0.875rem;
@@ -416,7 +403,7 @@ body.dark-theme .status-indicator.error {
   width: 100%;
   height: 6px;
   border-radius: 3px;
-  background: #e9ecef;
+  background: var(--bg-tertiary);
   outline: none;
   -webkit-appearance: none;
 }
@@ -429,7 +416,7 @@ body.dark-theme .status-indicator.error {
   border-radius: 50%;
   background: var(--secondary);
   cursor: pointer;
-  box-shadow: 0 2px 6px rgba(96, 165, 250, 0.4);
+  box-shadow: 0 2px 6px var(--secondary-shadow);
 }
 
 .volume-slider::-moz-range-thumb {
@@ -439,7 +426,7 @@ body.dark-theme .status-indicator.error {
   background: var(--secondary);
   cursor: pointer;
   border: none;
-  box-shadow: 0 2px 6px rgba(96, 165, 250, 0.4);
+  box-shadow: 0 2px 6px var(--secondary-shadow);
 }
 
 .slider-value {
@@ -449,7 +436,7 @@ body.dark-theme .status-indicator.error {
   color: var(--text-muted);
 }
 
-/* 响应式 */
+/* 响应�?*/
 @media (max-width: 768px) {
   .btn {
     padding: 0.5rem 1rem;
@@ -465,7 +452,7 @@ body.dark-theme .status-indicator.error {
   }
 }
 
-/* 聊天组件样式 - 桌面端和移动端共用 */
+/* 聊天组件样式 - 桌面端和移动端共�?*/
 
 /* 聊天消息 */
 .chat-message {
@@ -496,18 +483,18 @@ body.dark-theme .status-indicator.error {
   width: 32px;
   height: 32px;
   border-radius: 50%;
-  background: linear-gradient(135deg, #7dd3fc 0%, #bae6fd 100%);
+  background: linear-gradient(135deg, var(--btn-secondary-bg-start) 0%, var(--btn-secondary-bg-end) 100%);
   color: white;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 0.875rem;
-  box-shadow: 0 2px 6px rgba(125, 211, 252, 0.3);
+  box-shadow: 0 2px 6px var(--btn-secondary-shadow);
 }
 
 .own-message .message-avatar {
-  background: linear-gradient(135deg, #fb7299 0%, #fc8bab 100%);
-  box-shadow: 0 2px 6px rgba(251, 114, 153, 0.3);
+  background: linear-gradient(135deg, var(--btn-primary-bg-start) 0%, var(--btn-primary-bg-end) 100%);
+  box-shadow: 0 2px 6px var(--btn-primary-shadow);
 }
 
 /* 消息主体 */
@@ -559,16 +546,16 @@ body.dark-theme .status-indicator.error {
 }
 
 body.dark-theme .message-content {
-  background: #4a5568;
+  background: var(--bg-secondary);
   color: var(--text-primary);
 }
 
 .own-message .message-content {
-  background: linear-gradient(135deg, #fb7299 0%, #fc8bab 100%);
+  background: linear-gradient(135deg, var(--btn-primary-bg-start) 0%, var(--btn-primary-bg-end) 100%);
   color: white;
   border-top-left-radius: 12px;
   border-top-right-radius: 4px;
-  box-shadow: 0 2px 8px rgba(251, 114, 153, 0.3);
+  box-shadow: 0 2px 8px var(--btn-primary-shadow);
 }
 
 .own-message .message-body {
@@ -577,7 +564,7 @@ body.dark-theme .message-content {
   align-items: flex-end;
 }
 
-/* 聊天输入区 */
+/* 聊天输入�?*/
 .chat-input {
   display: flex;
   gap: 0.5rem;
@@ -597,10 +584,10 @@ body.dark-theme .message-content {
 .chat-input .form-control:focus {
   outline: none;
   border-color: var(--primary);
-  box-shadow: 0 0 0 3px rgba(251, 114, 153, 0.15);
+  box-shadow: 0 0 0 3px var(--primary-shadow-light);
 }
 
-/* 发送按钮 */
+/* 发送按�?*/
 .send-btn {
   width: 40px;
   height: 40px;
@@ -610,7 +597,7 @@ body.dark-theme .message-content {
   justify-content: center;
   padding: 0;
   flex-shrink: 0;
-  background: linear-gradient(135deg, #fb7299 0%, #fc8bab 100%);
+  background: linear-gradient(135deg, var(--btn-primary-bg-start) 0%, var(--btn-primary-bg-end) 100%);
   border: none;
   color: white;
   transition: all 0.2s ease;
@@ -618,19 +605,19 @@ body.dark-theme .message-content {
 }
 
 .send-btn:hover:not(:disabled) {
-  background: linear-gradient(135deg, #fc8bab 0%, #fb7299 100%);
+  background: linear-gradient(135deg, var(--btn-primary-bg-hover-start) 0%, var(--btn-primary-bg-hover-end) 100%);
   transform: translateY(-2px);
-  box-shadow: 0 4px 12px rgba(251, 114, 153, 0.4);
+  box-shadow: 0 4px 12px var(--btn-primary-shadow-hover);
 }
 
 .send-btn:disabled {
-  background: linear-gradient(135deg, #e2e8f0 0%, #cbd5e0 100%);
+  background: linear-gradient(135deg, var(--bg-tertiary) 0%, var(--border-color-dark) 100%);
   color: var(--text-muted);
   transform: none;
   box-shadow: none;
 }
 
-/* 聊天空状态 */
+/* 聊天空状�?*/
 .chat-empty {
   text-align: center;
   padding: 2rem 1rem;
@@ -638,7 +625,7 @@ body.dark-theme .message-content {
 }
 
 .chat-empty i {
-  color: #cbd5e0;
+  color: var(--border-color-dark);
   margin-bottom: 0.5rem;
   opacity: 0.5;
 }
@@ -650,7 +637,7 @@ body.dark-theme .message-content {
 
 /* 未读徽章 */
 .chat-badge {
-  background: linear-gradient(135deg, #fb7299 0%, #fc8bab 100%);
+  background: linear-gradient(135deg, var(--btn-primary-bg-start) 0%, var(--btn-primary-bg-end) 100%);
   color: white;
   font-size: 0.75rem;
   padding: 0.125rem 0.5rem;
@@ -659,3 +646,5 @@ body.dark-theme .message-content {
   min-width: 20px;
   text-align: center;
 }
+
+

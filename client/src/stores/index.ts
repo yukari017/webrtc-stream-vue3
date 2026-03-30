@@ -3,7 +3,8 @@ import type {
   WebRTCSettings, 
   PerformanceData, 
   StatusHistoryItem, 
-  AudioDevice 
+  AudioDevice,
+  LocalChatMessage
 } from '@/types/webrtc'
 
 /** 画质质量等级 */
@@ -53,6 +54,11 @@ interface WebRTCState {
 
   // 自适应码率
   adaptiveBitrate: AdaptiveBitrateState
+
+  // 聊天
+  chatMessages: LocalChatMessage[]
+  chatNewMessage: string
+  chatIsSending: boolean
 }
 
 export const useWebRTCStore = defineStore('webrtc', {
@@ -109,7 +115,12 @@ export const useWebRTCStore = defineStore('webrtc', {
       enabled: false,
       currentBitrateKbps: 0,
       qualityTier: 'high'
-    }
+    },
+
+    // 聊天
+    chatMessages: [],
+    chatNewMessage: '',
+    chatIsSending: false
   }),
   
   actions: {
@@ -203,9 +214,9 @@ export const useWebRTCStore = defineStore('webrtc', {
     
     // 设置 PeerConnection
     setPeerConnection(pc: RTCPeerConnection | null) {
-      if (this.peerConnection) {
-        this.peerConnection.close()
-      }
+      // 只赋值，不主动 close
+      // 调用方负责在 setPeerConnection(null) 前先 close()
+      // 避免重复 close 和不可控的副作用
       this.peerConnection = pc
     },
     
@@ -250,6 +261,38 @@ export const useWebRTCStore = defineStore('webrtc', {
     // 更新自适应码率状态
     updateAdaptiveBitrate(data: Partial<AdaptiveBitrateState>) {
       this.adaptiveBitrate = { ...this.adaptiveBitrate, ...data }
+    },
+
+    // ── 聊天 ──────────────────────────────────────────────────────────────
+
+    /** 追加一条聊天消息，超过 100 条时丢弃最旧的 */
+    addChatMessage(message: LocalChatMessage) {
+      this.chatMessages.push(message)
+      if (this.chatMessages.length > 100) {
+        this.chatMessages = this.chatMessages.slice(-100)
+      }
+    },
+
+    /** 按 id 删除一条消息（用于乐观更新失败时回滚） */
+    removeChatMessage(id: string) {
+      this.chatMessages = this.chatMessages.filter(m => m.id !== id)
+    },
+
+    /** 清空聊天记录（换房间 / 断开连接时调用） */
+    clearChatMessages() {
+      this.chatMessages = []
+      this.chatNewMessage = ''
+      this.chatIsSending = false
+    },
+
+    /** 更新输入框草稿 */
+    setChatNewMessage(text: string) {
+      this.chatNewMessage = text
+    },
+
+    /** 更新发送中标志位 */
+    setChatIsSending(sending: boolean) {
+      this.chatIsSending = sending
     },
     
     // 清理所有资源
@@ -297,6 +340,7 @@ export const useWebRTCStore = defineStore('webrtc', {
         packetLoss: 0,
         rtt: 0
       }
+      this.clearChatMessages()
       this.updateStatus('已清理所有资源', 'info')
     }
   },

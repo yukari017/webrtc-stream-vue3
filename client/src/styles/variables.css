@@ -31,6 +31,84 @@
   --error: #fda4af;
   --info: #7dd3fc;
   
+  /* 按钮颜色 - 次要操作（生成、清空、刷新） */
+  --btn-secondary-bg-start: #7dd3fc;
+  --btn-secondary-bg-end: #bae6fd;
+  --btn-secondary-bg-hover-start: #bae6fd;
+  --btn-secondary-bg-hover-end: #e0f2fe;
+  --btn-secondary-color: #0c4a6e;
+  --btn-secondary-shadow: rgba(125, 211, 252, 0.3);
+  --btn-secondary-shadow-hover: rgba(125, 211, 252, 0.4);
+  
+  /* 按钮颜色 - 主要操作（加入、复制、开始） */
+  --btn-primary-bg-start: #fb7299;
+  --btn-primary-bg-end: #fc8bab;
+  --btn-primary-bg-hover-start: #fc8bab;
+  --btn-primary-bg-hover-end: #fda4c6;
+  --btn-primary-color: white;
+  --btn-primary-shadow: rgba(251, 114, 153, 0.3);
+  --btn-primary-shadow-hover: rgba(251, 114, 153, 0.4);
+  
+  /* 按钮颜色 - 危险操作（离开、停止） */
+  --btn-danger-bg-start: #fda4af;
+  --btn-danger-bg-end: #fecdd3;
+  --btn-danger-bg-hover-start: #fecdd3;
+  --btn-danger-bg-hover-end: #ffe4e6;
+  --btn-danger-color: #9f1239;
+  --btn-danger-shadow: rgba(253, 164, 175, 0.3);
+  --btn-danger-shadow-hover: rgba(253, 164, 175, 0.4);
+  
+  /* 按钮颜色 - 警告操作 */
+  --btn-warning-bg-start: #fbbf24;
+  --btn-warning-bg-end: #fcd34d;
+  --btn-warning-bg-hover-start: #fcd34d;
+  --btn-warning-bg-hover-end: #fde68a;
+  --btn-warning-color: #78350f;
+  --btn-warning-shadow: rgba(251, 191, 36, 0.3);
+  --btn-warning-shadow-hover: rgba(251, 191, 36, 0.4);
+  
+  /* 遮罩层 */
+  --overlay-bg: rgba(0, 0, 0, 0.7);
+  --overlay-bg-heavy: rgba(0, 0, 0, 0.8);
+  --overlay-text: rgba(255, 255, 255, 0.8);
+  --overlay-gradient: linear-gradient(transparent, rgba(0, 0, 0, 0.8));
+  
+  /* 次要按钮阴影（slider thumb 等） */
+  --secondary-shadow: rgba(96, 165, 250, 0.4);
+  
+  /* 主色淡阴影 */
+  --primary-shadow-light: rgba(251, 114, 153, 0.15);
+  --mobile-bg-light: #f5f5f5;
+  --mobile-bg-dark: #1a1a1a;
+  --mobile-header-shadow: rgba(251, 114, 153, 0.3);
+  
+  /* 滚动条 */
+  --scrollbar-track-light: #f1f1f1;
+  --scrollbar-track-dark: #2d3748;
+  --scrollbar-thumb-light: #c1c1c1;
+  --scrollbar-thumb-dark: #4a5568;
+  --scrollbar-thumb-hover-light: #a8a8a8;
+  --scrollbar-thumb-hover-dark: #718096;
+  
+  /* Alert / Badge 颜色 */
+  --alert-success-bg: #c6f6d5;
+  --alert-success-color: #22543d;
+  --alert-success-border: #28a745;
+  --alert-danger-bg: #fed7d7;
+  --alert-danger-color: #742a2a;
+  --alert-danger-border: #dc3545;
+  --alert-warning-bg: #feebc8;
+  --alert-warning-color: #744210;
+  --alert-warning-border: #ffc107;
+  
+  /* 暗黑主题 Alert */
+  --alert-success-bg-dark: #22543d;
+  --alert-success-color-dark: #c6f6d5;
+  --alert-danger-bg-dark: #742a2a;
+  --alert-danger-color-dark: #fed7d7;
+  --alert-warning-bg-dark: #744210;
+  --alert-warning-color-dark: #feebc8;
+  
   /* 阴影 */
   --shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
