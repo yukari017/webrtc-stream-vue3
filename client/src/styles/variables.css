@@ -67,6 +67,11 @@
   --btn-warning-shadow: rgba(251, 191, 36, 0.3);
   --btn-warning-shadow-hover: rgba(251, 191, 36, 0.4);
   
+  /* 移动端背景色 */
+  --mobile-bg-light: #f5f5f5;
+  --mobile-bg-dark: #1a1a1a;
+  --mobile-header-shadow: rgba(251, 114, 153, 0.3);
+  
   /* 阴影 */
   --shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
