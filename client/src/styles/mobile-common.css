@@ -356,7 +356,7 @@ body.dark-theme .info-item {
 }
 
 .checkbox-group input[type="checkbox"]:checked {
-  background: linear-gradient(135deg, var(--primary) 0%, #fc8bab 100%);
+  background: linear-gradient(135deg, var(--btn-primary-bg-start) 0%, var(--btn-primary-bg-end) 100%);
   border-color: var(--primary);
 }
 
@@ -416,5 +416,6 @@ body.dark-theme .volume-slider {
   border: none;
   box-shadow: 0 2px 6px var(--secondary-shadow);
 }
+
 
 
