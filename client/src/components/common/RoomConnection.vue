@@ -27,7 +27,7 @@
           :disabled="generateDisabled"
         >
           <i class="fas fa-random"></i>
-          生成
+          <span class="btn-text">生成</span>
         </button>
         <button
           v-if="showClear"
@@ -36,7 +36,7 @@
           title="清空房间号"
         >
           <i class="fas fa-trash"></i>
-          清空
+          <span class="btn-text">清空</span>
         </button>
         <button
           v-if="showCopy"
@@ -46,7 +46,7 @@
           :disabled="copyDisabled"
         >
           <i class="fas fa-copy"></i>
-          复制
+          <span class="btn-text">复制</span>
         </button>
         <button
           v-if="showJoin"
@@ -55,7 +55,7 @@
           :disabled="joinDisabled"
         >
           <i class="fas fa-sign-in-alt"></i>
-          {{ joinText }}
+          <span class="btn-text">{{ joinText }}</span>
         </button>
       </div>
     </div>
@@ -131,6 +131,7 @@ defineEmits<{
 /* 房间连接卡片特有样式 - 公共样式见 components.css */
 
 .room-connection-card {
+  container-type: inline-size;
   background: var(--bg-primary);
   border-radius: var(--radius-lg);
   box-shadow: var(--shadow-sm);
@@ -207,6 +208,36 @@ body.dark-theme .room-connection-card {
 
   .room-connection-desktop {
     display: block;
+  }
+}
+
+/* input-group 内的按钮：固定尺寸，不随容器压缩 */
+.input-group .btn {
+  flex-shrink: 0;
+  padding: 0.5rem 0.875rem;
+  font-size: 0.875rem;
+  white-space: nowrap;
+}
+
+/* 容器宽度不足时只保留图标，文字隐藏 */
+@container (max-width: 420px) {
+  .input-group .btn .btn-text {
+    display: none;
+  }
+  .input-group .btn {
+    padding: 0.5rem 0.625rem;
+    gap: 0;
+  }
+}
+
+/* 不支持 container query 的降级：用 media query 兜底 */
+@media (max-width: 480px) {
+  .input-group .btn .btn-text {
+    display: none;
+  }
+  .input-group .btn {
+    padding: 0.5rem 0.625rem;
+    gap: 0;
   }
 }
 </style>
