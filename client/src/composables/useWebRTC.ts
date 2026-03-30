@@ -18,7 +18,10 @@ import {
 } from '@/utils/config'
 
 /** ICE Candidate 暂存最大容量，防止内存耗尽 */
-const MAX_PENDING_CANDIDATES = 10
+const MAX_PENDING_CANDIDATES = 50
+
+/** ICE Candidate 暂存超时时间（毫秒），超过此时间的候选会被清理 */
+const PENDING_CANDIDATE_TIMEOUT_MS = 30_000
 
 export function useWebRTC() {
   const store = useWebRTCStore()
@@ -59,31 +62,55 @@ export function useWebRTC() {
         let bitrate = store.performance.bitrate
 
         stats.forEach(report => {
-          if (report.type === 'inbound-rtp' && report.kind === 'video') {
-            const fps = (report as RTCStats & { framesPerSecond?: number }).framesPerSecond
-            if (fps !== undefined) framerate = fps
-            if (report.packetsLost !== undefined && report.packetsReceived !== undefined) {
-              const total = report.packetsLost + report.packetsReceived
-              packetLoss = total > 0 ? (report.packetsLost / total) * 100 : 0
-            }
-          }
+          // ── 推流端：从 remote-inbound-rtp 获取对端真实丢包率和 RTT ──────
+          // outbound-rtp 只能看自己发了多少，remote-inbound-rtp 才是对端收到的质量
+          // 观看端：从 inbound-rtp 获取本端收到的丢包率
+          if (store.isStreaming) {
+            // 推流端帧率：outbound-rtp
+            if (report.type === 'outbound-rtp' && report.kind === 'video') {
+              const fps = (report as RTCStats & { framesPerSecond?: number }).framesPerSecond
+              if (fps !== undefined) framerate = fps
 
-          if (report.type === 'candidate-pair' && report.state === 'succeeded') {
-            if (report.currentRoundTripTime !== undefined) {
-              rtt = Math.round(report.currentRoundTripTime * 1000)
-            }
-          }
-
-          if (report.type === 'outbound-rtp' && report.kind === 'video') {
-            if (report.bytesSent !== undefined && report.bytesSent > 0) {
-              const now = Date.now()
-              if (lastBytesSent > 0 && now > lastBytesSentTime) {
-                const deltaBytes = report.bytesSent - lastBytesSent
-                const deltaSec = (now - lastBytesSentTime) / 1000
-                bitrate = Math.round((deltaBytes * 8) / deltaSec)
+              // 推流端码率：基于 bytesSent 差值计算
+              if (report.bytesSent !== undefined && report.bytesSent > 0) {
+                const now = Date.now()
+                if (lastBytesSent > 0 && now > lastBytesSentTime) {
+                  const deltaBytes = report.bytesSent - lastBytesSent
+                  const deltaSec = (now - lastBytesSentTime) / 1000
+                  bitrate = Math.round((deltaBytes * 8) / deltaSec)
+                }
+                lastBytesSent = report.bytesSent
+                lastBytesSentTime = now
               }
-              lastBytesSent = report.bytesSent
-              lastBytesSentTime = now
+            }
+
+            // 推流端丢包率 + RTT：remote-inbound-rtp（对端反馈，ABR 决策依据）
+            if (report.type === 'remote-inbound-rtp' && report.kind === 'video') {
+              if (report.packetsLost !== undefined && report.packetsReceived !== undefined) {
+                const total = report.packetsLost + report.packetsReceived
+                packetLoss = total > 0 ? (report.packetsLost / total) * 100 : 0
+              }
+              // remote-inbound-rtp 直接携带 RTT（单位：秒）
+              if (report.roundTripTime !== undefined) {
+                rtt = Math.round(report.roundTripTime * 1000)
+              }
+            }
+          } else {
+            // 观看端：从 inbound-rtp 获取本端收到的质量数据
+            if (report.type === 'inbound-rtp' && report.kind === 'video') {
+              const fps = (report as RTCStats & { framesPerSecond?: number }).framesPerSecond
+              if (fps !== undefined) framerate = fps
+              if (report.packetsLost !== undefined && report.packetsReceived !== undefined) {
+                const total = report.packetsLost + report.packetsReceived
+                packetLoss = total > 0 ? (report.packetsLost / total) * 100 : 0
+              }
+            }
+
+            // 观看端 RTT：candidate-pair
+            if (report.type === 'candidate-pair' && report.state === 'succeeded') {
+              if (report.currentRoundTripTime !== undefined) {
+                rtt = Math.round(report.currentRoundTripTime * 1000)
+              }
             }
           }
         })
@@ -108,10 +135,25 @@ export function useWebRTC() {
    * DataChannel 互斥锁
    * 推流端（isStreaming）等待 Viewer 发来 "datachannel-ready" 后才认为可写
    * 观看端（!isStreaming）DataChannel open 后主动发送 "datachannel-ready"
+   * 使用 ref 确保重连时状态可被正确重置
    */
-  let dataChannelReady = false
+  const dataChannelReady = ref(false)
 
   const setupDataChannel = (channel: RTCDataChannel): void => {
+    // 防护：如果这个 channel 已经被设置过，就不再设置
+    if ((channel as any)._setupDone) return
+    (channel as any)._setupDone = true
+
+    // 关闭旧的 channel（如果存在）
+    const oldChannel = store.peerConnection?.dataChannel
+    if (oldChannel && oldChannel !== channel && oldChannel.readyState !== 'closed') {
+      oldChannel.close()
+    }
+
+    // 重连时重置状态
+    dataChannelReady.value = false
+    pendingMessages.value = [] // 清空旧队列
+
     channel.onopen = () => {
       store.updateStatus('数据通道已打开', 'success')
 
@@ -141,7 +183,7 @@ export function useWebRTC() {
           store.isStreaming &&
           (data as Record<string, unknown>).type === 'datachannel-ready'
         ) {
-          dataChannelReady = true
+          dataChannelReady.value = true
           store.updateStatus('数据通道就绪，可以开始聊天了', 'success')
           return
         }
@@ -153,6 +195,7 @@ export function useWebRTC() {
     }
 
     channel.onclose = () => {
+      dataChannelReady.value = false // 关闭时重置
       store.updateStatus('数据通道已关闭', 'info')
     }
 
@@ -164,8 +207,7 @@ export function useWebRTC() {
           error.message?.includes('Close called') ||
           error.message?.includes('User-Initiated Abort'))
       ) {
-        console.log('数据通道正常关闭')
-        return
+        return // 正常关闭，忽略
       }
       console.error('数据通道错误:', event)
       store.updateStatus('数据通道错误', 'error')
@@ -338,14 +380,6 @@ export function useWebRTC() {
     const pc = store.peerConnection
     if (!pc) return
 
-    // 容量保护：超出上限时丢弃最旧的
-    if (pendingIceCandidates.value.length >= MAX_PENDING_CANDIDATES) {
-      pendingIceCandidates.value.shift()
-      console.warn(
-        `pendingIceCandidates 超过上限 ${MAX_PENDING_CANDIDATES}，丢弃最旧的候选`
-      )
-    }
-
     if (pc.remoteDescription) {
       try {
         await pc.addIceCandidate(new RTCIceCandidate(candidate))
@@ -367,7 +401,23 @@ export function useWebRTC() {
       }
     } else {
       // 暂存，带时间戳供后续清理
-      pendingIceCandidates.value.push({ candidate, ts: Date.now() })
+      const now = Date.now()
+      
+      // 清理超时的候选（超过 30s 的丢弃）
+      pendingIceCandidates.value = pendingIceCandidates.value.filter(
+        item => now - item.ts < PENDING_CANDIDATE_TIMEOUT_MS
+      )
+      
+      // 容量保护：超出上限时丢弃最旧的
+      if (pendingIceCandidates.value.length >= MAX_PENDING_CANDIDATES) {
+        const dropped = pendingIceCandidates.value.shift()
+        console.warn(
+          `[ICE] pendingIceCandidates 超过上限 ${MAX_PENDING_CANDIDATES}，` +
+          `丢弃最旧的候选 (age: ${now - dropped!.ts}ms)`
+        )
+      }
+      
+      pendingIceCandidates.value.push({ candidate, ts: now })
     }
   }
 
@@ -388,17 +438,29 @@ export function useWebRTC() {
       pc.addTrack(track, stream)
     })
 
-    setTimeout(() => {
-      const senders = pc.getSenders()
-      const videoSender = senders.find(
+    // addTrack 后 sender.getParameters().encodings 尚未填充（协商未完成）
+    // 等信令状态回到 stable（offer/answer 交换完毕）再应用编码参数，替代 setTimeout 硬等
+    const applyOnStable = (): void => {
+      if (pc.signalingState !== 'stable') return
+      pc.removeEventListener('signalingstatechange', applyOnStable)
+
+      const videoSender = pc.getSenders().find(
         s => s.track && s.track.kind === 'video'
       )
-
       if (videoSender) {
         const targetBitrate = media.getTargetBitrate()
-        applySenderParameters(videoSender, targetBitrate)
+        applySenderParameters(videoSender, targetBitrate).catch(e => {
+          console.warn('applySenderParameters 失败:', e)
+        })
       }
-    }, 1000)
+    }
+
+    if (pc.signalingState === 'stable') {
+      // 已经是 stable（如 ICE restart 场景），直接应用
+      applyOnStable()
+    } else {
+      pc.addEventListener('signalingstatechange', applyOnStable)
+    }
 
     store.updateStatus('本地流已添加到 PeerConnection', 'info')
   }
@@ -412,19 +474,8 @@ export function useWebRTC() {
     try {
       signaling.connectSignaling(roomId)
 
-      await new Promise<void>((resolve, reject) => {
-        const checkInterval = setInterval(() => {
-          if (store.isConnected) {
-            clearInterval(checkInterval)
-            resolve()
-          }
-        }, 100)
-
-        setTimeout(() => {
-          clearInterval(checkInterval)
-          reject(new Error('信令连接超时'))
-        }, 10000)
-      })
+      // 事件驱动等待，替代 setInterval 轮询
+      await signaling.waitForConnection()
 
       createPeerConnection()
 
@@ -478,8 +529,9 @@ export function useWebRTC() {
 
     if (store.peerConnection) {
       const pc = store.peerConnection
-      store.setPeerConnection(null)
+      // 先关再清，避免 setPeerConnection(null) 里 close 一次，这里又 close 一次
       pc.close()
+      store.setPeerConnection(null)
     }
 
     media.stopAllStreams()
@@ -493,19 +545,8 @@ export function useWebRTC() {
     try {
       signaling.connectSignaling(roomId)
 
-      await new Promise<void>((resolve, reject) => {
-        const checkInterval = setInterval(() => {
-          if (store.isConnected) {
-            clearInterval(checkInterval)
-            resolve()
-          }
-        }, 100)
-
-        setTimeout(() => {
-          clearInterval(checkInterval)
-          reject(new Error('信令连接超时'))
-        }, 10000)
-      })
+      // 事件驱动等待，替代 setInterval 轮询
+      await signaling.waitForConnection()
 
       createPeerConnection()
 
@@ -533,12 +574,15 @@ export function useWebRTC() {
 
   /**
    * 待发送消息队列（DataChannel 互斥锁开启时暂存）
+   * 上限 MAX_PENDING_MESSAGES 条，超出时丢弃最旧的消息，防止内存无限增长
+   * 使用 ref 确保重连时可被正确清空
    */
-  const pendingMessages: string[] = []
+  const MAX_PENDING_MESSAGES = 50
+  const pendingMessages = ref<string[]>([])
 
   const flushPendingMessages = (channel: RTCDataChannel): void => {
-    while (pendingMessages.length > 0 && channel.readyState === 'open') {
-      const msg = pendingMessages.shift()
+    while (pendingMessages.value.length > 0 && channel.readyState === 'open') {
+      const msg = pendingMessages.value.shift()
       if (msg) {
         try {
           channel.send(msg)
@@ -559,13 +603,17 @@ export function useWebRTC() {
 
       // ── 推流端：等待 Viewer 发来 datachannel-ready ─────────────────────
       if (store.isStreaming) {
-        if (dataChannelReady && channel?.readyState === 'open') {
+        if (dataChannelReady.value && channel?.readyState === 'open') {
           channel.send(msgStr)
           return true
         }
 
-        // 未就绪，暂存消息，50ms 后重试
-        pendingMessages.push(msgStr)
+        // 未就绪，暂存消息；超出上限时丢弃最旧的一条
+        if (pendingMessages.value.length >= MAX_PENDING_MESSAGES) {
+          console.warn(`pendingMessages 已达上限 ${MAX_PENDING_MESSAGES}，丢弃最旧消息`)
+          pendingMessages.value.shift()
+        }
+        pendingMessages.value.push(msgStr)
         setTimeout(() => {
           const ch = pc.dataChannel
           if (ch && ch.readyState === 'open') {
@@ -597,7 +645,10 @@ export function useWebRTC() {
 
           setTimeout(() => {
             clearInterval(checkInterval)
-            if (!resolved) resolved = true
+            if (!resolved) {
+              resolved = true
+              resolve(false) // 超时，明确 resolve(false)，避免 Promise 永远挂起
+            }
           }, 5000)
         })
       }
@@ -651,6 +702,12 @@ export function useWebRTC() {
     const pc = store.peerConnection
     if (!pc) return
 
+    // 只有推流端发起 ICE restart offer，观看端等对端 offer 后自动应答
+    if (!store.isStreaming) {
+      store.updateStatus('观看端等待对端发起 ICE restart', 'info')
+      return
+    }
+
     try {
       const offer = await pc.createOffer({ iceRestart: true })
       await pc.setLocalDescription(offer)
@@ -669,7 +726,8 @@ export function useWebRTC() {
 
   // ─── eventBus 事件订阅 ─────────────────────────────────────────────────
 
-  eventBus.on('room-ready', () => {
+  // 保存具名引用，onUnmounted 时用同一引用 off，防止监听器叠加泄漏
+  const onRoomReady = (): void => {
     if (store.isStreaming) {
       const pc = store.peerConnection
 
@@ -692,10 +750,7 @@ export function useWebRTC() {
 
         if (stream) {
           addLocalStreamToPeerConnection(stream)
-
-          setTimeout(() => {
-            createAndSendOffer()
-          }, 500)
+          createAndSendOffer()
         }
       } else if (pc.signalingState === 'have-local-offer') {
         signaling.sendMessage({
@@ -707,9 +762,9 @@ export function useWebRTC() {
         createAndSendOffer()
       }
     }
-  })
+  }
 
-  eventBus.on('message', (data: unknown) => {
+  const onMessage = (data: unknown): void => {
     const msg = data as Record<string, unknown>
     switch (msg.type) {
       case 'offer':
@@ -724,15 +779,24 @@ export function useWebRTC() {
       default:
         console.warn('未知消息类型:', msg.type)
     }
-  })
+  }
 
-  eventBus.on('peer-disconnected', () => {
+  const onPeerDisconnected = (): void => {
     eventBus.emit('connection-closed')
-  })
+  }
+
+  eventBus.on('room-ready', onRoomReady)
+  eventBus.on('message', onMessage)
+  eventBus.on('peer-disconnected', onPeerDisconnected)
 
   // ─── 清理 ───────────────────────────────────────────────────────────────
 
   onUnmounted(() => {
+    // 取消所有 eventBus 订阅，防止组件重挂载时监听器叠加
+    eventBus.off('room-ready', onRoomReady)
+    eventBus.off('message', onMessage)
+    eventBus.off('peer-disconnected', onPeerDisconnected)
+
     if (iceRestartTimer.value) {
       clearTimeout(iceRestartTimer.value)
     }

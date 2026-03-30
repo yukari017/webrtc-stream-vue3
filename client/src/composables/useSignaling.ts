@@ -56,6 +56,8 @@ export function useSignaling() {
       store.setConnected(true)
       store.updateStatus('信令服务器连接成功', 'success')
       startHeartbeat(socket)
+      // 通知所有等待连接就绪的调用方（waitForConnection）
+      eventBus.emit('signaling-connected')
     }
 
     socket.onmessage = (event) => {
@@ -194,6 +196,33 @@ export function useSignaling() {
     }
   }
 
+  // ─── 等待连接就绪（事件驱动，替代轮询） ────────────────────────────────
+
+  /**
+   * 返回一个 Promise，在信令连接建立后 resolve。
+   * - 若已连接则立即 resolve
+   * - 若超时（默认 10s）则 reject
+   * 内部监听 'signaling-connected' 事件，无需轮询
+   */
+  const waitForConnection = (timeoutMs = 10000): Promise<void> => {
+    if (store.isConnected) return Promise.resolve()
+
+    return new Promise<void>((resolve, reject) => {
+      const timer = setTimeout(() => {
+        eventBus.off('signaling-connected', onConnected)
+        reject(new Error('信令连接超时'))
+      }, timeoutMs)
+
+      const onConnected = () => {
+        clearTimeout(timer)
+        eventBus.off('signaling-connected', onConnected) // once 语义：触发后立即 off
+        resolve()
+      }
+
+      eventBus.on('signaling-connected', onConnected)
+    })
+  }
+
   // ─── 断开 ───────────────────────────────────────────────────────────────
 
   const disconnect = (): void => {
@@ -230,6 +259,7 @@ export function useSignaling() {
     connectSignaling,
     disconnect,
     sendMessage,
+    waitForConnection,
     on: eventBus.on,
     off: eventBus.off,
 

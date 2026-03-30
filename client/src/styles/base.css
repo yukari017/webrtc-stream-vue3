@@ -28,7 +28,7 @@ body {
 
 /* 暗色主题 */
 body.dark-theme {
-  background-color: #1a202c;
+  background-color: var(--bg-tertiary);
   color: var(--text-primary);
 }
 
@@ -46,29 +46,29 @@ body.dark-theme {
 }
 
 ::-webkit-scrollbar-track {
-  background: #f1f1f1;
+  background: var(--scrollbar-track-light);
   border-radius: 4px;
 }
 
 body.dark-theme ::-webkit-scrollbar-track {
-  background: #2d3748;
+  background: var(--scrollbar-track-dark);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
+  background: var(--scrollbar-thumb-light);
   border-radius: 4px;
 }
 
 body.dark-theme ::-webkit-scrollbar-thumb {
-  background: #4a5568;
+  background: var(--scrollbar-thumb-dark);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #a8a8a8;
+  background: var(--scrollbar-thumb-hover-light);
 }
 
 body.dark-theme ::-webkit-scrollbar-thumb:hover {
-  background: #718096;
+  background: var(--scrollbar-thumb-hover-dark);
 }
 
 /* 隐藏元素 */

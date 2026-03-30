@@ -57,9 +57,10 @@ import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useWebRTCStore } from '@/stores'
 import { useWebRTC } from '@/composables/useWebRTC'
 import { useMediaStream } from '@/composables/useMediaStream'
-import { generateRoomId, escapeHtml } from '@/utils/ui-utils'
+import { useChat } from '@/composables/useChat'
 import { eventBus } from '@/utils/eventBus'
-import type { WebRTCSettings, AudioDevice, ChatMessage } from '@/types/webrtc'
+import { generateRoomId } from '@/utils/ui-utils'
+import type { WebRTCSettings, AudioDevice } from '@/types/webrtc'
 import MobileTabBar from './MobileTabBar.vue'
 import MobileStreamTab from './MobileStreamTab.vue'
 import MobileSettingsTab from './MobileSettingsTab.vue'
@@ -71,6 +72,7 @@ type TabId = 'stream' | 'settings' | 'chat' | 'log'
 const store = useWebRTCStore()
 const webrtc = useWebRTC()
 const media = useMediaStream()
+const chat = useChat()
 
 const activeTab = ref<TabId>('stream')
 
@@ -79,52 +81,19 @@ const selectedCameraId = ref('')
 const selectedAudioDeviceId = ref('')
 const chatUnreadCount = ref(0)
 
-/** 聊天消息列表（由父组件统一管理，页面加载时就注册监听） */
-const chatMessages = ref<{
-  id: string
-  text: string
-  sender: string
-  timestamp: number
-  isLocal?: boolean
-  isSystem?: boolean
-}[]>([])
+// 聊天消息直接从 store 读取，所有组件共享同一份
+const chatMessages = computed(() => store.chatMessages)
 
-/** 统一的消息监听（页面加载时就注册，不依赖聊天标签页是否激活） */
-const onDataChannelMessage = (data: unknown): void => {
-  const msg = data as ChatMessage
-  if (msg.type !== 'chat') return
-
+// 新消息到达时，若不在聊天 tab 则增加未读计数
+const onNewChatMessage = (): void => {
   if (activeTab.value !== 'chat') {
     chatUnreadCount.value++
-  }
-
-  chatMessages.value.push({
-    id: `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
-    text: escapeHtml(msg.text || ''),
-    sender: msg.sender === store.clientId ? '我' : msg.sender,
-    timestamp: msg.timestamp || Date.now(),
-    isLocal: false
-  })
-
-  if (chatMessages.value.length > 100) {
-    chatMessages.value = chatMessages.value.slice(-100)
   }
 }
 
 const handleSendMessage = (text: string): void => {
-  chatMessages.value.push({
-    id: `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
-    text,
-    sender: '我',
-    timestamp: Date.now(),
-    isLocal: true
-  })
+  chat.sendMessage(text)
 }
-
-onMounted(() => {
-  eventBus.on('data-channel-message', onDataChannelMessage)
-  initDevices()
-})
 
 const cameras = ref<MediaDeviceInfo[]>([])
 const audioDevices = ref<AudioDevice[]>([])
@@ -231,6 +200,8 @@ const handlePageShow = (event: PageTransitionEvent) => {
 
 onMounted(async () => {
   window.addEventListener('pageshow', handlePageShow)
+  chat.init()
+  eventBus.on('data-channel-message', onNewChatMessage)
 
   const savedRoomId = sessionStorage.getItem('streamerRoomId')
   if (isPageReload() && savedRoomId) {
@@ -248,7 +219,7 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
-  eventBus.off('data-channel-message', onDataChannelMessage)
+  eventBus.off('data-channel-message', onNewChatMessage)
   window.removeEventListener('pageshow', handlePageShow)
   webrtc.stopStreaming()
   media.stopAllStreams()

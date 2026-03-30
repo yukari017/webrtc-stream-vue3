@@ -53,10 +53,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useWebRTCStore } from '@/stores'
-import { useWebRTC } from '@/composables/useWebRTC'
+import { useChat } from '@/composables/useChat'
 import { eventBus } from '@/utils/eventBus'
-import type { ChatMessage } from '@/types/webrtc'
-import { escapeHtml } from '@/utils/ui-utils'
 import MobileTabBar from '@/components/mobile/MobileTabBar.vue'
 import MobileChatTab from '@/components/mobile/MobileChatTab.vue'
 import MobileLogTab from '@/components/mobile/MobileLogTab.vue'
@@ -66,7 +64,7 @@ import ViewerMobileSettingsTab from './ViewerMobileSettingsTab.vue'
 type TabId = 'stream' | 'settings' | 'chat' | 'log'
 
 const store = useWebRTCStore()
-const webrtc = useWebRTC()
+const chat = useChat()
 
 const activeTab = ref<TabId>('stream')
 const roomId = ref('')
@@ -74,15 +72,8 @@ const chatUnreadCount = ref(0)
 const autoReconnect = ref(true)
 const volume = ref(100)
 
-/** 聊天消息列表（由父组件统一管理） */
-const chatMessages = ref<{
-  id: string
-  text: string
-  sender: string
-  timestamp: number
-  isLocal?: boolean
-  isSystem?: boolean
-}[]>([])
+// 聊天消息直接从 store 读取
+const chatMessages = computed(() => store.chatMessages)
 
 const tabTitles: Record<TabId, string> = {
   stream: '观看',
@@ -119,46 +110,26 @@ const handleVolumeUpdate = (vol: number) => {
 }
 
 const handleSendMessage = (text: string): void => {
-  chatMessages.value.push({
-    id: `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
-    text,
-    sender: '我',
-    timestamp: Date.now(),
-    isLocal: true
-  })
+  chat.sendMessage(text)
 }
 
-/** 统一的消息监听（页面加载时就注册，不依赖聊天标签页是否激活） */
-const onDataChannelMessage = (data: unknown): void => {
-  const msg = data as ChatMessage
-  if (msg.type !== 'chat') return
-
-  // 正在聊天标签页时不计数
+/** 新消息到达时，若不在聊天标签页则增加未读计数 */
+const onNewChatMessage = (): void => {
   if (activeTab.value !== 'chat') {
     chatUnreadCount.value++
-  }
-
-  chatMessages.value.push({
-    id: `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
-    text: escapeHtml(msg.text || ''),
-    sender: msg.sender === store.clientId ? '我' : msg.sender,
-    timestamp: msg.timestamp || Date.now(),
-    isLocal: false
-  })
-
-  // 超过 100 条丢弃最旧的
-  if (chatMessages.value.length > 100) {
-    chatMessages.value = chatMessages.value.slice(-100)
   }
 }
 
 onMounted(() => {
-  eventBus.on('data-channel-message', onDataChannelMessage)
+  chat.init()
+  // 监听新消息到达，用于更新未读计数（不在聊天 tab 时）
+  eventBus.on('data-channel-message', onNewChatMessage)
 })
 
 onUnmounted(() => {
-  eventBus.off('data-channel-message', onDataChannelMessage)
-  webrtc.stopStreaming()
+  eventBus.off('data-channel-message', onNewChatMessage)
+  // Viewer.vue 的 onUnmounted 已调用 leaveRoom() → webrtc.stopStreaming()
+  // 这里只需清理 store 状态，避免重复 close PeerConnection
   store.cleanup()
 })
 </script>
