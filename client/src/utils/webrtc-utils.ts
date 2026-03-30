@@ -196,7 +196,6 @@ export async function getAudioDevices(force = false, ensurePermission = false): 
   // 过滤掉无效的设备（移动端在未授权时可能返回 deviceId 为空或 default）
   const validDevices = audioDevices.filter(d => d.deviceId && d.deviceId !== '')
   
-  const previousCount = deviceCache.devices.length
   deviceCache.devices = validDevices.length > 0 ? validDevices : audioDevices
   deviceCache.timestamp = now
   

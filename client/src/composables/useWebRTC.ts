@@ -132,10 +132,15 @@ export function useWebRTC() {
    * DataChannel 互斥锁
    * 推流端（isStreaming）等待 Viewer 发来 "datachannel-ready" 后才认为可写
    * 观看端（!isStreaming）DataChannel open 后主动发送 "datachannel-ready"
+   * 使用 ref 确保重连时状态可被正确重置
    */
-  let dataChannelReady = false
+  const dataChannelReady = ref(false)
 
   const setupDataChannel = (channel: RTCDataChannel): void => {
+    // 重连时重置状态
+    dataChannelReady.value = false
+    pendingMessages.value = [] // 清空旧队列
+
     channel.onopen = () => {
       store.updateStatus('数据通道已打开', 'success')
 
@@ -165,7 +170,7 @@ export function useWebRTC() {
           store.isStreaming &&
           (data as Record<string, unknown>).type === 'datachannel-ready'
         ) {
-          dataChannelReady = true
+          dataChannelReady.value = true
           store.updateStatus('数据通道就绪，可以开始聊天了', 'success')
           return
         }
@@ -177,6 +182,7 @@ export function useWebRTC() {
     }
 
     channel.onclose = () => {
+      dataChannelReady.value = false // 关闭时重置
       store.updateStatus('数据通道已关闭', 'info')
     }
 
@@ -188,8 +194,7 @@ export function useWebRTC() {
           error.message?.includes('Close called') ||
           error.message?.includes('User-Initiated Abort'))
       ) {
-        console.log('数据通道正常关闭')
-        return
+        return // 正常关闭，忽略
       }
       console.error('数据通道错误:', event)
       store.updateStatus('数据通道错误', 'error')
@@ -549,13 +554,14 @@ export function useWebRTC() {
   /**
    * 待发送消息队列（DataChannel 互斥锁开启时暂存）
    * 上限 MAX_PENDING_MESSAGES 条，超出时丢弃最旧的消息，防止内存无限增长
+   * 使用 ref 确保重连时可被正确清空
    */
   const MAX_PENDING_MESSAGES = 50
-  const pendingMessages: string[] = []
+  const pendingMessages = ref<string[]>([])
 
   const flushPendingMessages = (channel: RTCDataChannel): void => {
-    while (pendingMessages.length > 0 && channel.readyState === 'open') {
-      const msg = pendingMessages.shift()
+    while (pendingMessages.value.length > 0 && channel.readyState === 'open') {
+      const msg = pendingMessages.value.shift()
       if (msg) {
         try {
           channel.send(msg)
@@ -576,17 +582,17 @@ export function useWebRTC() {
 
       // ── 推流端：等待 Viewer 发来 datachannel-ready ─────────────────────
       if (store.isStreaming) {
-        if (dataChannelReady && channel?.readyState === 'open') {
+        if (dataChannelReady.value && channel?.readyState === 'open') {
           channel.send(msgStr)
           return true
         }
 
         // 未就绪，暂存消息；超出上限时丢弃最旧的一条
-        if (pendingMessages.length >= MAX_PENDING_MESSAGES) {
+        if (pendingMessages.value.length >= MAX_PENDING_MESSAGES) {
           console.warn(`pendingMessages 已达上限 ${MAX_PENDING_MESSAGES}，丢弃最旧消息`)
-          pendingMessages.shift()
+          pendingMessages.value.shift()
         }
-        pendingMessages.push(msgStr)
+        pendingMessages.value.push(msgStr)
         setTimeout(() => {
           const ch = pc.dataChannel
           if (ch && ch.readyState === 'open') {
