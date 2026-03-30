@@ -59,31 +59,55 @@ export function useWebRTC() {
         let bitrate = store.performance.bitrate
 
         stats.forEach(report => {
-          if (report.type === 'inbound-rtp' && report.kind === 'video') {
-            const fps = (report as RTCStats & { framesPerSecond?: number }).framesPerSecond
-            if (fps !== undefined) framerate = fps
-            if (report.packetsLost !== undefined && report.packetsReceived !== undefined) {
-              const total = report.packetsLost + report.packetsReceived
-              packetLoss = total > 0 ? (report.packetsLost / total) * 100 : 0
-            }
-          }
+          // ── 推流端：从 remote-inbound-rtp 获取对端真实丢包率和 RTT ──────
+          // outbound-rtp 只能看自己发了多少，remote-inbound-rtp 才是对端收到的质量
+          // 观看端：从 inbound-rtp 获取本端收到的丢包率
+          if (store.isStreaming) {
+            // 推流端帧率：outbound-rtp
+            if (report.type === 'outbound-rtp' && report.kind === 'video') {
+              const fps = (report as RTCStats & { framesPerSecond?: number }).framesPerSecond
+              if (fps !== undefined) framerate = fps
 
-          if (report.type === 'candidate-pair' && report.state === 'succeeded') {
-            if (report.currentRoundTripTime !== undefined) {
-              rtt = Math.round(report.currentRoundTripTime * 1000)
-            }
-          }
-
-          if (report.type === 'outbound-rtp' && report.kind === 'video') {
-            if (report.bytesSent !== undefined && report.bytesSent > 0) {
-              const now = Date.now()
-              if (lastBytesSent > 0 && now > lastBytesSentTime) {
-                const deltaBytes = report.bytesSent - lastBytesSent
-                const deltaSec = (now - lastBytesSentTime) / 1000
-                bitrate = Math.round((deltaBytes * 8) / deltaSec)
+              // 推流端码率：基于 bytesSent 差值计算
+              if (report.bytesSent !== undefined && report.bytesSent > 0) {
+                const now = Date.now()
+                if (lastBytesSent > 0 && now > lastBytesSentTime) {
+                  const deltaBytes = report.bytesSent - lastBytesSent
+                  const deltaSec = (now - lastBytesSentTime) / 1000
+                  bitrate = Math.round((deltaBytes * 8) / deltaSec)
+                }
+                lastBytesSent = report.bytesSent
+                lastBytesSentTime = now
               }
-              lastBytesSent = report.bytesSent
-              lastBytesSentTime = now
+            }
+
+            // 推流端丢包率 + RTT：remote-inbound-rtp（对端反馈，ABR 决策依据）
+            if (report.type === 'remote-inbound-rtp' && report.kind === 'video') {
+              if (report.packetsLost !== undefined && report.packetsReceived !== undefined) {
+                const total = report.packetsLost + report.packetsReceived
+                packetLoss = total > 0 ? (report.packetsLost / total) * 100 : 0
+              }
+              // remote-inbound-rtp 直接携带 RTT（单位：秒）
+              if (report.roundTripTime !== undefined) {
+                rtt = Math.round(report.roundTripTime * 1000)
+              }
+            }
+          } else {
+            // 观看端：从 inbound-rtp 获取本端收到的质量数据
+            if (report.type === 'inbound-rtp' && report.kind === 'video') {
+              const fps = (report as RTCStats & { framesPerSecond?: number }).framesPerSecond
+              if (fps !== undefined) framerate = fps
+              if (report.packetsLost !== undefined && report.packetsReceived !== undefined) {
+                const total = report.packetsLost + report.packetsReceived
+                packetLoss = total > 0 ? (report.packetsLost / total) * 100 : 0
+              }
+            }
+
+            // 观看端 RTT：candidate-pair
+            if (report.type === 'candidate-pair' && report.state === 'succeeded') {
+              if (report.currentRoundTripTime !== undefined) {
+                rtt = Math.round(report.currentRoundTripTime * 1000)
+              }
             }
           }
         })
