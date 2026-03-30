@@ -226,7 +226,7 @@ body.dark-theme .room-connection-card {
 }
 
 /* 容器宽度不足时只保留图标，文字隐藏 */
-@container (max-width: 280px) {
+@container (max-width: 260px) {
   .input-group .btn .btn-text {
     display: none;
   }
