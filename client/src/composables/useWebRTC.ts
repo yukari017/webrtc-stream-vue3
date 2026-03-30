@@ -729,10 +729,7 @@ export function useWebRTC() {
 
         if (stream) {
           addLocalStreamToPeerConnection(stream)
-
-          setTimeout(() => {
-            createAndSendOffer()
-          }, 500)
+          createAndSendOffer()
         }
       } else if (pc.signalingState === 'have-local-offer') {
         signaling.sendMessage({

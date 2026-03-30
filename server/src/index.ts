@@ -127,6 +127,7 @@ wss.on('connection', (ws: WebSocket, req) => {
   if (!result.success) {
     extWs.send(JSON.stringify({ type: 'room-full', roomId }))
     extWs.close(4001, 'room full')
+    activeConnections-- // 拒绝入房的连接不计入活跃数
     return
   }
   

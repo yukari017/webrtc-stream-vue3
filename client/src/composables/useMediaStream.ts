@@ -25,9 +25,7 @@ export function useMediaStream() {
     streamError.value = null
     
     try {
-      console.log('getScreenShareStream 开始...')
       const { frameRate, resolution, shareAudio, shareCursor } = store.settings
-      console.log('从store获取的设置:', { frameRate, resolution, shareAudio, shareCursor })
       
       const result = await getScreenStream({
         frameRate,
@@ -36,8 +34,7 @@ export function useMediaStream() {
         shareCursor
       })
       
-      const { stream, isFallback, failedReason } = result
-      console.log('getScreenStream 返回的流:', stream, { isFallback, failedReason })
+      const { stream, isFallback } = result
       
       if (!stream) {
         throw new Error('getScreenStream 返回空流')
@@ -45,14 +42,6 @@ export function useMediaStream() {
       
       const videoTrack = stream.getVideoTracks()[0]
       if (videoTrack) {
-        console.log('视频轨道信息:', {
-          label: videoTrack.label,
-          enabled: videoTrack.enabled,
-          muted: videoTrack.muted,
-          readyState: videoTrack.readyState,
-          settings: videoTrack.getSettings()
-        })
-        // 屏幕共享用 detail，摄像头回退用 motion
         setVideoContentHint(videoTrack, isFallback ? 'motion' : 'detail')
       } else {
         console.warn('流中没有视频轨道')
@@ -164,22 +153,13 @@ export function useMediaStream() {
   // 刷新音频设备列表
   const refreshAudioDevices = async (force = false): Promise<AudioDevice[]> => {
     try {
-      // 检测权限状态（仅在 force 或首次时打印日志）
       const permissionStatus = await navigator.permissions.query({ name: 'microphone' as PermissionName })
       
-      if (force) {
-        console.log('麦克风权限状态:', permissionStatus.state)
-      }
-      
-      // 如果权限被拒绝，提示用户
       if (permissionStatus.state === 'denied') {
         store.updateStatus('麦克风权限已被拒绝，请在浏览器设置中允许麦克风权限', 'error')
         return []
       }
       
-      // 需要请求权限的情况：
-      // 1. 移动端首次（强制请求才能获取真实设备 ID）
-      // 2. 权限状态为 prompt（尚未询问过）
       const needPermission = isMobile() || permissionStatus.state === 'prompt'
       
       const devices = await getAudioDevices(force, needPermission || force)

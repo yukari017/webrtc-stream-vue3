@@ -261,14 +261,8 @@ const isMobileDevice = isMobile()
 const cameras = ref<MediaDeviceInfo[]>([])
 const selectedCameraId = ref('')
 
-// 设置
-const settings = ref<WebRTCSettings>({
-  frameRate: 60,
-  resolution: '1440p',
-  quality: 'ultra',
-  shareAudio: true,
-  shareCursor: true
-})
+// 设置 — 从 store 读取初始值，避免本地硬编码与 store 不一致
+const settings = ref<WebRTCSettings>({ ...store.settings })
 
 // 音频设备
 const selectedAudioDeviceId = ref('')

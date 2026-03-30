@@ -87,17 +87,18 @@ export function useChat() {
         if (retrySent) {
           newMessage.value = ''
         }
+        isSending.value = false // 无论重试成功与否都要解锁
       }, 500)
+      return false
     } else {
       // Promise<boolean> case
-      ;(sent as Promise<boolean>).finally(() => {
+      ;(sent as Promise<boolean>).then(ok => {
+        if (ok) newMessage.value = ''
+      }).finally(() => {
         isSending.value = false
       })
       return false
     }
-
-    isSending.value = false
-    return false
   }
 
   // ─── 已读标记 ─────────────────────────────────────────────────────────
@@ -110,10 +111,11 @@ export function useChat() {
 
   let saveTimer: ReturnType<typeof setInterval> | null = null
 
-  const init = (): (() => void) => {
+  const init = (): void => {
     messages.value = []
     setupMessageListener()
 
+    if (saveTimer) clearInterval(saveTimer)
     saveTimer = setInterval(() => {
       if (messages.value.length > 0 && store.roomId) {
         localStorage.setItem(
@@ -122,14 +124,11 @@ export function useChat() {
         )
       }
     }, 30_000)
-
-    return () => {
-      if (saveTimer) clearInterval(saveTimer)
-      eventBus.off('data-channel-message', onDataChannelMessage)
-    }
   }
 
   onUnmounted(() => {
+    if (saveTimer) clearInterval(saveTimer)
+    eventBus.off('data-channel-message', onDataChannelMessage)
     messages.value = []
   })
 

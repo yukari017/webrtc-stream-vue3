@@ -215,12 +215,11 @@ export function useSignaling() {
 
       const onConnected = () => {
         clearTimeout(timer)
+        eventBus.off('signaling-connected', onConnected) // once 语义：触发后立即 off
         resolve()
       }
 
-      // once 语义：触发一次后自动 off
       eventBus.on('signaling-connected', onConnected)
-      // 用 onConnected 引用注册，超时时可精准 off
     })
   }
 
