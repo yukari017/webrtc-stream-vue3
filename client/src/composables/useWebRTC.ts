@@ -137,6 +137,16 @@ export function useWebRTC() {
   const dataChannelReady = ref(false)
 
   const setupDataChannel = (channel: RTCDataChannel): void => {
+    // 防护：如果这个 channel 已经被设置过，就不再设置
+    if ((channel as any)._setupDone) return
+    (channel as any)._setupDone = true
+
+    // 关闭旧的 channel（如果存在）
+    const oldChannel = store.peerConnection?.dataChannel
+    if (oldChannel && oldChannel !== channel && oldChannel.readyState !== 'closed') {
+      oldChannel.close()
+    }
+
     // 重连时重置状态
     dataChannelReady.value = false
     pendingMessages.value = [] // 清空旧队列

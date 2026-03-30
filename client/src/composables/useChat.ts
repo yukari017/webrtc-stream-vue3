@@ -6,6 +6,9 @@ import type { ChatMessage, LocalChatMessage } from '@/types/webrtc'
 
 export type { LocalChatMessage }
 
+// ─── 全局防护：防止多个 useChat 实例重复注册监听器 ──────────────────────────
+let globalChatInitialized = false
+
 // ─── 内部工具：直接通过 store.peerConnection 发送 DataChannel 消息 ──────────
 // 不依赖 useWebRTC()，避免每次 useChat() 都额外注册一套信令 eventBus 监听器
 
@@ -174,12 +177,17 @@ export function useChat() {
   /**
    * 注册 DataChannel 消息监听器，启动定期持久化。
    * 幂等：多次调用只生效一次。
+   * 全局防护：防止多个 useChat 实例重复注册监听器。
    */
   const init = (): void => {
     if (initialized) return
     initialized = true
 
-    eventBus.on('data-channel-message', onDataChannelMessage)
+    // 全局防护：只有第一个 useChat 实例才注册监听器
+    if (!globalChatInitialized) {
+      globalChatInitialized = true
+      eventBus.on('data-channel-message', onDataChannelMessage)
+    }
 
     if (saveTimer) clearInterval(saveTimer)
     saveTimer = setInterval(() => {
@@ -194,7 +202,10 @@ export function useChat() {
 
   /** 清理监听器和定时器（由 onUnmounted 自动调用） */
   const cleanup = (): void => {
-    eventBus.off('data-channel-message', onDataChannelMessage)
+    if (initialized) {
+      eventBus.off('data-channel-message', onDataChannelMessage)
+      globalChatInitialized = false
+    }
     if (saveTimer) {
       clearInterval(saveTimer)
       saveTimer = null
