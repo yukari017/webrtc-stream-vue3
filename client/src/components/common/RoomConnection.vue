@@ -219,6 +219,13 @@ body.dark-theme .room-connection-card {
   white-space: nowrap;
 }
 
+/* 输入框：最大宽度限半、字体缩小 */
+.input-group .form-control {
+  max-width: 50%;
+  font-size: 0.875rem;
+  padding: 0.5rem 0.75rem;
+}
+
 /* 容器宽度不足时只保留图标，文字隐藏 */
 @container (max-width: 420px) {
   .input-group .btn .btn-text {
