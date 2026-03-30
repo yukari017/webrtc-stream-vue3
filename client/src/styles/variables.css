@@ -72,6 +72,14 @@
   --mobile-bg-dark: #1a1a1a;
   --mobile-header-shadow: rgba(251, 114, 153, 0.3);
   
+  /* 滚动条 */
+  --scrollbar-track-light: #f1f1f1;
+  --scrollbar-track-dark: #2d3748;
+  --scrollbar-thumb-light: #c1c1c1;
+  --scrollbar-thumb-dark: #4a5568;
+  --scrollbar-thumb-hover-light: #a8a8a8;
+  --scrollbar-thumb-hover-dark: #718096;
+  
   /* 阴影 */
   --shadow-sm: 0 2px 10px rgba(0, 0, 0, 0.05);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.1);
