@@ -118,6 +118,16 @@
   }
 }
 
+/* 推流控制按钮组 */
+.stream-btn-group {
+  container-type: inline-size;
+}
+
+.stream-btn-group .btn {
+  font-size: 0.875rem;
+  padding: 0.5rem 0.875rem;
+}
+
 /* 暗色主题覆盖 */
 body.dark-theme .page-header h2 {
   background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%);
@@ -127,21 +137,21 @@ body.dark-theme .page-header h2 {
 }
 
 body.dark-theme .page-header .subtitle {
-  color: #8b9dc3;
+  color: var(--text-secondary);
 }
 
 body.dark-theme .perf-panel {
-  background: #4a5568;
+  background: var(--bg-secondary);
 }
 
 body.dark-theme .perf-label {
-  color: #a0aec0;
+  color: var(--text-secondary);
 }
 
 body.dark-theme .perf-value {
-  color: #e2e8f0;
+  color: var(--text-primary);
 }
 
 body.dark-theme .slider-value {
-  color: #a0aec0;
+  color: var(--text-secondary);
 }

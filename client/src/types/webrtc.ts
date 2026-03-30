@@ -43,6 +43,15 @@ export interface ChatMessage {
   timestamp: number
 }
 
+export interface LocalChatMessage {
+  id: string
+  text: string
+  sender: string
+  timestamp: number
+  isLocal?: boolean
+  isSystem?: boolean
+}
+
 // 扩展 RTCPeerConnection 添加 dataChannel 属性
 declare global {
   interface RTCPeerConnection {

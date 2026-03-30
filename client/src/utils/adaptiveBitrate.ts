@@ -19,6 +19,7 @@
 import { useWebRTCStore } from '@/stores'
 import { applySenderParameters } from './webrtc-utils'
 import { eventBus } from '@/utils/eventBus'
+import { DEBUG } from '@/utils/config'
 
 /** 码率调整间隔（ms） */
 const ADAPT_INTERVAL_MS = 3000
@@ -89,7 +90,7 @@ function computeTargetBitrate(
       }
     } else {
       // 连续达标则解除约束，避免永久锁死
-      if (encoderConstrained) {
+      if (encoderConstrained && DEBUG) {
         console.log(`[ABR] ✓ 编码器达标率恢复: actual=${actualKbps.toFixed(0)}kbps / target=${currentKbps}kbps`)
       }
       encoderConstrained = false
@@ -100,8 +101,8 @@ function computeTargetBitrate(
   // ── 冷却期：不决策 ─────────────────────────────────────────
   if (inCooldown) return currentKbps
 
-  // ── 降码率 ─────────────────────────────────────────────────
-  if (packetLoss > 5 || rtt > 300 || packetLoss > 3) {
+  // ── 降码率：丢包 > 5% 或 RTT > 300ms（对应注释中的 low 区间） ──────
+  if (packetLoss > 5 || rtt > 300) {
     if (consecutiveDowngrades >= MAX_CONSECUTIVE_DOWNGRADES) {
       return Math.max(currentKbps, MIN_BITRATE_KBPS)
     }
@@ -114,10 +115,12 @@ function computeTargetBitrate(
       MIN_BITRATE_KBPS
     )
 
-    console.log(
-      `[ABR] ↓ 降码率: ${currentKbps}kbps → ${newBitrate}kbps ` +
-      `(packetLoss=${packetLoss.toFixed(1)}%, rtt=${rtt}ms, actual=${actualKbps.toFixed(0)}kbps)`
-    )
+    if (DEBUG) {
+      console.log(
+        `[ABR] ↓ 降码率: ${currentKbps}kbps → ${newBitrate}kbps ` +
+        `(packetLoss=${packetLoss.toFixed(1)}%, rtt=${rtt}ms, actual=${actualKbps.toFixed(0)}kbps)`
+      )
+    }
 
     return newBitrate
   }
@@ -132,10 +135,12 @@ function computeTargetBitrate(
 
     if (newBitrate > currentKbps + 200) {
       lastAdjustTime = now
-      console.log(
-        `[ABR] ↑ 升码率: ${currentKbps}kbps → ${newBitrate}kbps ` +
-        `(packetLoss=${packetLoss.toFixed(1)}%, rtt=${rtt}ms, actual=${actualKbps.toFixed(0)}kbps, ratio=${(actualKbps / currentKbps * 100).toFixed(0)}%)`
-      )
+      if (DEBUG) {
+        console.log(
+          `[ABR] ↑ 升码率: ${currentKbps}kbps → ${newBitrate}kbps ` +
+          `(packetLoss=${packetLoss.toFixed(1)}%, rtt=${rtt}ms, actual=${actualKbps.toFixed(0)}kbps, ratio=${(actualKbps / currentKbps * 100).toFixed(0)}%)`
+        )
+      }
     }
 
     return newBitrate
@@ -143,14 +148,17 @@ function computeTargetBitrate(
 
   // ── 编码器受限说明（仅首次进入受限状态时输出）───────────────
   if (encoderConstrained && !encoderConstrainedWarned && isHighQuality) {
-    console.log(
-      `[ABR] ⏸ 暂停升码率: actual=${actualKbps.toFixed(0)}kbps / target=${currentKbps}kbps ` +
-      `= ${(actualKbps / currentKbps * 100).toFixed(0)}% < ${ENCODER_ACHIEVABLE_RATIO * 100}%（编码器受限）`
-    )
+    if (DEBUG) {
+      console.log(
+        `[ABR] ⏸ 暂停升码率: actual=${actualKbps.toFixed(0)}kbps / target=${currentKbps}kbps ` +
+        `= ${(actualKbps / currentKbps * 100).toFixed(0)}% < ${ENCODER_ACHIEVABLE_RATIO * 100}%（编码器受限）`
+      )
+    }
     encoderConstrainedWarned = true
   }
 
-  // ── 网络好转时恢复连续降级计数 ──────────────────────────────
+  // ── 网络处于 medium 区间（丢包 1-5% 或 RTT 80-300ms）时缓慢恢复降级计数 ──
+  // low 区间已在上方 return，能走到这里的只有 medium
   if (!isHighQuality) {
     consecutiveDowngrades = Math.max(0, consecutiveDowngrades - 1)
   }
@@ -221,9 +229,9 @@ export function startAdaptiveBitrate(initialBitrateKbps: number): void {
   })
 
   adaptInterval = setInterval(doAdapt, ADAPT_INTERVAL_MS)
-  console.log(
-    `[ABR] 启动自适应码率控制器，初始码率: ${initialBitrateKbps}kbps`
-  )
+  if (DEBUG) {
+    console.log(`[ABR] 启动自适应码率控制器，初始码率: ${initialBitrateKbps}kbps`)
+  }
 }
 
 /**
@@ -243,7 +251,9 @@ export function stopAdaptiveBitrate(): void {
 
   const store = useWebRTCStore()
   store.updateAdaptiveBitrate({ enabled: false })
-  console.log('[ABR] 停止自适应码率控制器')
+  if (DEBUG) {
+    console.log('[ABR] 停止自适应码率控制器')
+  }
 }
 
 // 断线自动停止

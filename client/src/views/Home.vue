@@ -41,23 +41,23 @@
             </div>
             
             <div class="stream-controls mt-4">
-              <div class="flex gap-2">
+              <div class="flex gap-2 stream-btn-group">
                 <!-- 桌面端：显示屏幕共享 + 摄像头 -->
                 <template v-if="!isMobileDevice">
                   <button class="btn btn-primary flex-1" @click="getScreenStream" :disabled="isStreaming">
                     <i class="fas fa-desktop"></i>
-                    {{ isGettingStream ? '获取中...' : '屏幕共享' }}
+                    <span class="btn-text">{{ isGettingStream ? '获取中...' : '屏幕共享' }}</span>
                   </button>
                   <button class="btn btn-secondary flex-1" @click="getCameraStream(); streamType = 'camera'" :disabled="isGettingStream || isStreaming">
                     <i class="fas fa-camera"></i>
-                    {{ isGettingStream ? '获取中...' : '摄像头' }}
+                    <span class="btn-text">{{ isGettingStream ? '获取中...' : '摄像头' }}</span>
                   </button>
                 </template>
                 <!-- 移动端：只显示获取摄像头 -->
                 <template v-else>
                   <button class="btn btn-primary flex-1" @click="getCameraStream" :disabled="isGettingStream || isStreaming">
                     <i class="fas fa-camera"></i>
-                    {{ isGettingStream ? '获取中...' : '获取摄像头' }}
+                    <span class="btn-text">{{ isGettingStream ? '获取中...' : '获取摄像头' }}</span>
                   </button>
                 </template>
                 <button 
@@ -66,7 +66,7 @@
                   :disabled="!roomId || (!localStream && !store.screenStream) || isStreaming"
                 >
                   <i class="fas fa-play"></i>
-                  开始推流
+                  <span class="btn-text">开始推流</span>
                 </button>
                 <button 
                   class="btn btn-danger flex-1" 
@@ -74,7 +74,7 @@
                   :disabled="!localStream && !store.screenStream && !isStreaming"
                 >
                   <i class="fas fa-stop"></i>
-                  停止
+                  <span class="btn-text">停止</span>
                 </button>
               </div>
             </div>
@@ -101,7 +101,7 @@
           />
           
           <!-- 聊天面板 -->
-          <ChatPanel :is-connected="isConnected" />
+          <ChatPanel :is-connected="isConnected" @send="chat.sendMessage" />
         </div>
         
         <!-- 右侧：设置和状态 -->
@@ -232,6 +232,7 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useWebRTCStore } from '@/stores'
 import { useWebRTC } from '@/composables/useWebRTC'
 import { useMediaStream } from '@/composables/useMediaStream'
+import { useChat } from '@/composables/useChat'
 import { generateRoomId, isMobile, supportsTabAudioCapture } from '@/utils/ui-utils'
 import type { AudioDevice, WebRTCSettings } from '@/types/webrtc'
 import ChatPanel from '@/components/Chat/ChatPanel.vue'
@@ -244,6 +245,7 @@ import PerfPanel from '@/components/common/PerfPanel.vue'
 const store = useWebRTCStore()
 const webrtc = useWebRTC()
 const media = useMediaStream()
+const chat = useChat()
 
 // 本地视频引用
 const localVideo = ref<HTMLVideoElement | null>(null)
@@ -261,14 +263,8 @@ const isMobileDevice = isMobile()
 const cameras = ref<MediaDeviceInfo[]>([])
 const selectedCameraId = ref('')
 
-// 设置
-const settings = ref<WebRTCSettings>({
-  frameRate: 60,
-  resolution: '1440p',
-  quality: 'ultra',
-  shareAudio: true,
-  shareCursor: true
-})
+// 设置 — 从 store 读取初始值，避免本地硬编码与 store 不一致
+const settings = ref<WebRTCSettings>({ ...store.settings })
 
 // 音频设备
 const selectedAudioDeviceId = ref('')
@@ -385,13 +381,9 @@ const stopAll = () => {
     localVideo.value.srcObject = null
   }
   
-  store.cleanup()
+  store.cleanup() // cleanup() 内部已调用 clearChatMessages()
   streamType.value = 'screen'
   sessionStorage.removeItem('streamerRoomId')
-  
-  if (store.isStreaming) {
-    generateRoomIdHandler()
-  }
 }
 
 const refreshAudioDevices = async () => {
@@ -440,6 +432,8 @@ const handlePageShow = (event: PageTransitionEvent) => {
 
 // 生命周期
 onMounted(async () => {
+  // 初始化聊天监听器（推流端也需要接收 Viewer 发来的消息）
+  chat.init()
   await refreshAudioDevices()
 
   // 加载摄像头列表（移动端需要先请求权限才能获取真实设备名）

@@ -78,7 +78,7 @@
           />
           
           <!-- 聊天面板 -->
-          <ChatPanel :is-connected="isConnected" />
+          <ChatPanel :is-connected="isConnected" @send="chat.sendMessage" />
         </div>
         
         <!-- 右侧：控制和状态 -->
@@ -258,12 +258,13 @@ const joinRoom = async () => {
   
   const success = await webrtc.joinAsViewer(roomId.value)
   if (success) {
-    // 保存房间号到 localStorage，持久化缓存
+    // 保存房间号，持久化缓存（用 localStorage 跨 tab/重启保留）
     localStorage.setItem('viewerRoomId', roomId.value)
+    sessionStorage.setItem('viewerRoomId', roomId.value) // pageshow 重连用
     
     startTime.value = Date.now()
     startViewingTimer()
-    chat.init()
+    // chat.init() 已在 onMounted 里调用，此处不重复调用
   }
 }
 
@@ -333,45 +334,38 @@ const stopViewingTimer = (clearStartTime = true) => {
 
 // 监听远程流变化
 watch(remoteStream, async (newStream) => {
-  // 等待 DOM 更新
   await nextTick()
   
   if (newStream && remoteVideo.value) {
     const video = remoteVideo.value
-    // 确保视频元素的属性正确设置
     video.autoplay = true
     ;(video as HTMLVideoElement & { playsInline: boolean }).playsInline = true
     video.controls = true
-    
-    // 默认开启声音
     video.muted = false
     isMuted.value = false
     
-    // 先清空之前的 srcObject
+    // 清空旧流
     if (video.srcObject) {
       video.srcObject = null
     }
     
-    // 等待一小段时间再设置新的 srcObject
-    await new Promise(resolve => setTimeout(resolve, 50))
-    
-    // 设置视频流
     video.srcObject = newStream
     
-    // 强制触发视频元素重新加载
-    video.load()
+    // 等 loadedmetadata 再 play，比 setTimeout 更可靠
+    await new Promise<void>(resolve => {
+      if (video.readyState >= HTMLMediaElement.HAVE_METADATA) {
+        resolve()
+      } else {
+        video.addEventListener('loadedmetadata', () => resolve(), { once: true })
+      }
+    })
     
-    // 等待视频元数据加载
-    await new Promise(resolve => setTimeout(resolve, 200))
-    
-    // 尝试播放视频
     if (video.paused) {
       video.play().catch((err: Error) => {
         console.error('视频播放失败:', err)
       })
     }
     
-    // 添加错误监听
     video.onerror = () => {
       console.error('视频错误:', video.error)
     }
