@@ -95,11 +95,6 @@ const handleSendMessage = (text: string): void => {
   chat.sendMessage(text)
 }
 
-onMounted(() => {
-  eventBus.on('data-channel-message', onDataChannelMessage)
-  initDevices()
-})
-
 const cameras = ref<MediaDeviceInfo[]>([])
 const audioDevices = ref<AudioDevice[]>([])
 
