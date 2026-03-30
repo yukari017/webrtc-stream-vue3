@@ -3,7 +3,8 @@ import type {
   WebRTCSettings, 
   PerformanceData, 
   StatusHistoryItem, 
-  AudioDevice 
+  AudioDevice,
+  LocalChatMessage
 } from '@/types/webrtc'
 
 /** 画质质量等级 */
@@ -53,6 +54,10 @@ interface WebRTCState {
 
   // 自适应码率
   adaptiveBitrate: AdaptiveBitrateState
+
+  // 聊天
+  chatMessages: LocalChatMessage[]
+  chatNewMessage: string
 }
 
 export const useWebRTCStore = defineStore('webrtc', {
@@ -109,7 +114,11 @@ export const useWebRTCStore = defineStore('webrtc', {
       enabled: false,
       currentBitrateKbps: 0,
       qualityTier: 'high'
-    }
+    },
+
+    // 聊天
+    chatMessages: [],
+    chatNewMessage: ''
   }),
   
   actions: {
@@ -251,6 +260,27 @@ export const useWebRTCStore = defineStore('webrtc', {
     updateAdaptiveBitrate(data: Partial<AdaptiveBitrateState>) {
       this.adaptiveBitrate = { ...this.adaptiveBitrate, ...data }
     },
+
+    // ── 聊天 ──────────────────────────────────────────────────────────────
+
+    /** 追加一条聊天消息，超过 100 条时丢弃最旧的 */
+    addChatMessage(message: LocalChatMessage) {
+      this.chatMessages.push(message)
+      if (this.chatMessages.length > 100) {
+        this.chatMessages = this.chatMessages.slice(-100)
+      }
+    },
+
+    /** 清空聊天记录（换房间 / 断开连接时调用） */
+    clearChatMessages() {
+      this.chatMessages = []
+      this.chatNewMessage = ''
+    },
+
+    /** 更新输入框草稿 */
+    setChatNewMessage(text: string) {
+      this.chatNewMessage = text
+    },
     
     // 清理所有资源
     cleanup() {
@@ -297,6 +327,7 @@ export const useWebRTCStore = defineStore('webrtc', {
         packetLoss: 0,
         rtt: 0
       }
+      this.clearChatMessages()
       this.updateStatus('已清理所有资源', 'info')
     }
   },

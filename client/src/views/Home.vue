@@ -101,7 +101,7 @@
           />
           
           <!-- 聊天面板 -->
-          <ChatPanel :is-connected="isConnected" />
+          <ChatPanel :is-connected="isConnected" @send="chat.sendMessage" />
         </div>
         
         <!-- 右侧：设置和状态 -->
@@ -232,6 +232,7 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useWebRTCStore } from '@/stores'
 import { useWebRTC } from '@/composables/useWebRTC'
 import { useMediaStream } from '@/composables/useMediaStream'
+import { useChat } from '@/composables/useChat'
 import { generateRoomId, isMobile, supportsTabAudioCapture } from '@/utils/ui-utils'
 import type { AudioDevice, WebRTCSettings } from '@/types/webrtc'
 import ChatPanel from '@/components/Chat/ChatPanel.vue'
@@ -244,6 +245,7 @@ import PerfPanel from '@/components/common/PerfPanel.vue'
 const store = useWebRTCStore()
 const webrtc = useWebRTC()
 const media = useMediaStream()
+const chat = useChat()
 
 // 本地视频引用
 const localVideo = ref<HTMLVideoElement | null>(null)
@@ -379,7 +381,7 @@ const stopAll = () => {
     localVideo.value.srcObject = null
   }
   
-  store.cleanup()
+  store.cleanup() // cleanup() 内部已调用 clearChatMessages()
   streamType.value = 'screen'
   sessionStorage.removeItem('streamerRoomId')
   
@@ -434,6 +436,8 @@ const handlePageShow = (event: PageTransitionEvent) => {
 
 // 生命周期
 onMounted(async () => {
+  // 初始化聊天监听器（推流端也需要接收 Viewer 发来的消息）
+  chat.init()
   await refreshAudioDevices()
 
   // 加载摄像头列表（移动端需要先请求权限才能获取真实设备名）

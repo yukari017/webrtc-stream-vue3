@@ -44,7 +44,7 @@
         name="chatMessage"
         type="text"
         class="form-control"
-        v-model="chat.newMessage.value"
+        v-model="newMessage"
         :placeholder="isConnected ? '输入消息...' : '未连接'"
         @keyup.enter="sendMessage"
         :disabled="!isConnected"
@@ -52,7 +52,7 @@
       <button
         class="btn btn-primary send-btn"
         @click="sendMessage"
-        :disabled="!isConnected || !chat.newMessage.value.trim()"
+        :disabled="!isConnected || !newMessage.trim()"
         title="发送消息"
       >
         <i class="fas fa-paper-plane"></i>
@@ -62,12 +62,11 @@
 </template>
 
 <script setup lang="ts">
-import { ref, watch, onActivated, nextTick } from 'vue'
-import { useChat } from '@/composables/useChat'
+import { ref, computed, watch, onActivated, nextTick } from 'vue'
+import { useWebRTCStore } from '@/stores'
 
 const props = defineProps<{
   isConnected: boolean
-  /** 由父组件传入的消息列表（父组件统一管理事件监听和未读计数） */
   messages: {
     id: string
     text: string
@@ -84,8 +83,14 @@ const emit = defineEmits<{
   'send-message': [text: string]
 }>()
 
-const chat = useChat()
+const store = useWebRTCStore()
 const chatMessagesRef = ref<HTMLDivElement | null>(null)
+
+// 直接读写 store，与 ChatPanel 共享同一份状态
+const newMessage = computed({
+  get: () => store.chatNewMessage,
+  set: (v: string) => store.setChatNewMessage(v)
+})
 
 // 收到新消息时自动滚动到底部
 watch(() => props.messages.length, () => {
@@ -97,18 +102,17 @@ watch(() => props.messages.length, () => {
 })
 
 const sendMessage = () => {
-  if (!chat.newMessage.value.trim() || !props.isConnected) return
+  const text = store.chatNewMessage.trim()
+  if (!text || !props.isConnected) return
 
-  const text = chat.newMessage.value.trim()
-  emit('send-message', text)  // 通知父组件把自己发的消息加到列表
-  chat.sendMessage(text)
+  emit('send-message', text)
   emit('mark-read')
 
-  setTimeout(() => {
+  nextTick(() => {
     if (chatMessagesRef.value) {
       chatMessagesRef.value.scrollTop = chatMessagesRef.value.scrollHeight
     }
-  }, 100)
+  })
 }
 
 // 每次激活聊天标签时：滚动到底 + 通知父组件已读

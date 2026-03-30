@@ -44,7 +44,7 @@
           name="chatMessage"
           type="text" 
           class="form-control" 
-          v-model="chat.newMessage.value" 
+          v-model="newMessage"
           :placeholder="isConnected ? '输入消息，按 Enter 发送...' : '未连接'"
           @keyup.enter="sendMessage"
           :disabled="!isConnected"
@@ -52,7 +52,7 @@
         <button 
           class="btn btn-primary send-btn" 
           @click="sendMessage"
-          :disabled="!isConnected || !chat.newMessage.value.trim()"
+          :disabled="!isConnected || !newMessage.trim()"
           title="发送消息"
         >
           <i class="fas fa-paper-plane"></i>
@@ -63,8 +63,8 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch, nextTick } from 'vue'
-import { useChat } from '@/composables/useChat'
+import { ref, computed, watch, nextTick } from 'vue'
+import { useWebRTCStore } from '@/stores'
 
 // 接收 isConnected 属性
 const props = defineProps({
@@ -74,26 +74,25 @@ const props = defineProps({
   }
 })
 
-const chat = useChat()
+// 直接读 store —— 所有实例共享同一份聊天状态
+const store = useWebRTCStore()
 const chatMessagesRef = ref<HTMLDivElement | null>(null)
 
-// 使用 computed 来访问响应式数据
-const messages = computed(() => chat.messages.value)
+const messages = computed(() => store.chatMessages)
+const newMessage = computed({
+  get: () => store.chatNewMessage,
+  set: (v: string) => store.setChatNewMessage(v)
+})
 const unreadCount = ref(0)
 const previousMessageCount = ref(0)
 
-// 监听新消息
+// 监听新消息：自动滚动 + 未读计数
 watch(() => messages.value.length, (newLength) => {
   if (newLength > previousMessageCount.value) {
-    // 有新消息
-    const newMessage = messages.value[messages.value.length - 1]
-    
-    // 如果是收到的消息（非本地发送），增加未读计数
-    if (newMessage && !newMessage.isLocal) {
+    const lastMsg = messages.value[messages.value.length - 1]
+    if (lastMsg && !lastMsg.isLocal) {
       unreadCount.value++
     }
-    
-    // 自动滚动到底部（无论是发送还是接收消息）
     nextTick(() => {
       if (chatMessagesRef.value) {
         chatMessagesRef.value.scrollTop = chatMessagesRef.value.scrollHeight
@@ -103,55 +102,41 @@ watch(() => messages.value.length, (newLength) => {
   previousMessageCount.value = newLength
 })
 
-// 发送消息
+// 发送消息 —— 通过 store 更新输入框，由父组件的 chat 实例负责实际发送
+// ChatPanel 只负责展示和触发，不持有 useChat 实例
+const emit = defineEmits<{
+  (e: 'send', text: string): void
+}>()
+
 const sendMessage = () => {
-  if (!chat.newMessage.value.trim() || !props.isConnected) return
-  
-  chat.sendMessage(chat.newMessage.value)
+  const text = store.chatNewMessage.trim()
+  if (!text || !props.isConnected) return
+  emit('send', text)
   unreadCount.value = 0
-  
-  // 发送消息后也滚动到底部
-  setTimeout(() => {
+  nextTick(() => {
     if (chatMessagesRef.value) {
       chatMessagesRef.value.scrollTop = chatMessagesRef.value.scrollHeight
     }
-  }, 100)
+  })
 }
 
-// 标记消息为已读
 const markMessagesAsRead = () => {
   unreadCount.value = 0
-  chat.markAsRead()
+  localStorage.setItem('chat_last_read', Date.now().toString())
 }
 
-// 格式化时间
 const formatTime = (timestamp: string | number): string => {
   if (!timestamp) return ''
-  
   try {
-    const date = typeof timestamp === 'string' 
+    const date = typeof timestamp === 'string'
       ? new Date(Date.parse(timestamp))
       : new Date(timestamp)
-    
-    if (isNaN(date.getTime())) {
-      return ''
-    }
-    
+    if (isNaN(date.getTime())) return ''
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
   } catch {
     return ''
   }
 }
-
-// 初始化
-onMounted(() => {
-  const unsubscribe = chat.init()
-  
-  // 保存取消订阅函数，在组件卸载时调用
-  onUnmounted(() => {
-    if (unsubscribe) unsubscribe()
-  })
-})
 </script>
 
 <style scoped>

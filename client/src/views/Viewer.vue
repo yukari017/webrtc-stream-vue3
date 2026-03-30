@@ -78,7 +78,7 @@
           />
           
           <!-- 聊天面板 -->
-          <ChatPanel :is-connected="isConnected" />
+          <ChatPanel :is-connected="isConnected" @send="chat.sendMessage" />
         </div>
         
         <!-- 右侧：控制和状态 -->
@@ -264,7 +264,7 @@ const joinRoom = async () => {
     
     startTime.value = Date.now()
     startViewingTimer()
-    chat.init()
+    // chat.init() 已在 onMounted 里调用，此处不重复调用
   }
 }
 

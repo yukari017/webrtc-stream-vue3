@@ -1,67 +1,47 @@
-import { ref, onUnmounted } from 'vue'
+import { computed, onUnmounted } from 'vue'
 import { useWebRTCStore } from '@/stores'
 import { eventBus } from '@/utils/eventBus'
-import type { ChatMessage } from '@/types/webrtc'
 import { useWebRTC } from '@/composables/useWebRTC'
 import { escapeHtml } from '@/utils/ui-utils'
+import type { ChatMessage, LocalChatMessage } from '@/types/webrtc'
 
-export interface LocalChatMessage {
-  id: string
-  text: string
-  sender: string
-  timestamp: number
-  isLocal?: boolean
-  isSystem?: boolean
-}
+export type { LocalChatMessage }
 
 export function useChat() {
   const store = useWebRTCStore()
   const webrtc = useWebRTC()
 
-  const messages = ref<LocalChatMessage[]>([])
-  const newMessage = ref('')
-  const isSending = ref(false)
+  // ── 状态（全部来自 store，所有实例共享同一份数据）────────────────────────
+  const messages = computed(() => store.chatMessages)
+  const newMessage = computed({
+    get: () => store.chatNewMessage,
+    set: (v: string) => store.setChatNewMessage(v)
+  })
+  // isSending 不需要跨实例共享，本地 ref 即可
+  // 但为了防止多实例竞争，改为 store 里的标志位也可以；
+  // 这里保持简单：同一时刻只有一个 ChatPanel 可见，本地 ref 足够
+  let isSendingFlag = false
 
-  // ─── Data Channel 消息监听 ─────────────────────────────────────────────
+  // ── 消息接收 ─────────────────────────────────────────────────────────────
 
   const onDataChannelMessage = (data: unknown): void => {
     const msg = data as ChatMessage
-    if (msg.type === 'chat') {
-      addMessage({
-        text: msg.text,
-        sender: msg.sender === store.clientId ? '我' : msg.sender,
-        timestamp: msg.timestamp || Date.now(),
-        isLocal: false
-      })
-    }
-  }
+    if (msg.type !== 'chat') return
 
-  const setupMessageListener = (): void => {
-    eventBus.on('data-channel-message', onDataChannelMessage)
-  }
-
-  // ─── 消息操作 ─────────────────────────────────────────────────────────
-
-  const addMessage = (message: Partial<LocalChatMessage>): void => {
-    messages.value.push({
-      id: message.id || `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
-      text: escapeHtml(message.text || ''),
-      sender: message.isLocal ? '我' : (message.sender || '未知'),
-      timestamp: message.timestamp || Date.now(),
-      isLocal: message.isLocal,
-      isSystem: message.isSystem
+    store.addChatMessage({
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
+      text: escapeHtml(msg.text || ''),
+      sender: msg.sender === store.clientId ? '我' : (msg.sender || '对方'),
+      timestamp: msg.timestamp || Date.now(),
+      isLocal: false
     })
-
-    // 超过 100 条时丢弃最旧的
-    if (messages.value.length > 100) {
-      messages.value = messages.value.slice(-100)
-    }
   }
+
+  // ── 发送消息 ──────────────────────────────────────────────────────────────
 
   const sendMessage = (text: string): boolean => {
-    if (!text.trim() || isSending.value) return false
-
-    isSending.value = true
+    if (!text.trim() || isSendingFlag) return false
+    isSendingFlag = true
 
     const chatMsg: ChatMessage = {
       type: 'chat',
@@ -70,74 +50,92 @@ export function useChat() {
       timestamp: Date.now()
     }
 
-    addMessage({ ...chatMsg, isLocal: true })
+    // 先把自己的消息加到 store（乐观更新）
+    store.addChatMessage({
+      id: `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
+      text: escapeHtml(chatMsg.text),
+      sender: '我',
+      timestamp: chatMsg.timestamp,
+      isLocal: true
+    })
 
     const sent = webrtc.sendDataChannelMessage(chatMsg)
 
     if (sent === true) {
-      newMessage.value = ''
-      isSending.value = false
+      store.setChatNewMessage('')
+      isSendingFlag = false
       return true
     }
 
-    // 异步发送，500ms 后重试一次
     if (sent === false) {
+      // DataChannel 未就绪，500ms 后重试一次
       setTimeout(() => {
         const retrySent = webrtc.sendDataChannelMessage(chatMsg)
-        if (retrySent) {
-          newMessage.value = ''
-        }
-        isSending.value = false // 无论重试成功与否都要解锁
+        if (retrySent) store.setChatNewMessage('')
+        isSendingFlag = false
       }, 500)
       return false
-    } else {
-      // Promise<boolean> case
-      ;(sent as Promise<boolean>).then(ok => {
-        if (ok) newMessage.value = ''
-      }).finally(() => {
-        isSending.value = false
-      })
-      return false
     }
+
+    // Promise<boolean> 分支（观看端 channel 还在 connecting）
+    ;(sent as Promise<boolean>).then(ok => {
+      if (ok) store.setChatNewMessage('')
+    }).finally(() => {
+      isSendingFlag = false
+    })
+    return false
   }
 
-  // ─── 已读标记 ─────────────────────────────────────────────────────────
+  // ── 已读标记 ──────────────────────────────────────────────────────────────
 
   const markAsRead = (): void => {
     localStorage.setItem('chat_last_read', Date.now().toString())
   }
 
-  // ─── 初始化 ───────────────────────────────────────────────────────────
+  // ── 初始化 / 清理 ─────────────────────────────────────────────────────────
 
   let saveTimer: ReturnType<typeof setInterval> | null = null
+  let initialized = false
 
+  /**
+   * 注册 DataChannel 消息监听器，启动定期持久化。
+   * 幂等：多次调用只生效一次（防止 Viewer.vue 里 onMounted + joinRoom 双重调用）。
+   */
   const init = (): void => {
-    messages.value = []
-    setupMessageListener()
+    if (initialized) return
+    initialized = true
+
+    eventBus.on('data-channel-message', onDataChannelMessage)
 
     if (saveTimer) clearInterval(saveTimer)
     saveTimer = setInterval(() => {
-      if (messages.value.length > 0 && store.roomId) {
+      if (store.chatMessages.length > 0 && store.roomId) {
         localStorage.setItem(
           `chat_history_${store.roomId}`,
-          JSON.stringify(messages.value)
+          JSON.stringify(store.chatMessages)
         )
       }
     }, 30_000)
   }
 
-  onUnmounted(() => {
-    if (saveTimer) clearInterval(saveTimer)
+  /** 清理监听器和定时器（由 onUnmounted 自动调用，无需外部手动调用） */
+  const cleanup = (): void => {
     eventBus.off('data-channel-message', onDataChannelMessage)
-    messages.value = []
-  })
+    if (saveTimer) {
+      clearInterval(saveTimer)
+      saveTimer = null
+    }
+    initialized = false
+  }
+
+  onUnmounted(cleanup)
 
   return {
+    messages,
+    newMessage,
     sendMessage,
     markAsRead,
     init,
-    messages,
-    newMessage,
-    isSending
+    cleanup
   }
 }
