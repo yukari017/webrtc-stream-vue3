@@ -535,7 +535,9 @@ export function useWebRTC() {
 
   /**
    * 待发送消息队列（DataChannel 互斥锁开启时暂存）
+   * 上限 MAX_PENDING_MESSAGES 条，超出时丢弃最旧的消息，防止内存无限增长
    */
+  const MAX_PENDING_MESSAGES = 50
   const pendingMessages: string[] = []
 
   const flushPendingMessages = (channel: RTCDataChannel): void => {
@@ -566,7 +568,11 @@ export function useWebRTC() {
           return true
         }
 
-        // 未就绪，暂存消息，50ms 后重试
+        // 未就绪，暂存消息；超出上限时丢弃最旧的一条
+        if (pendingMessages.length >= MAX_PENDING_MESSAGES) {
+          console.warn(`pendingMessages 已达上限 ${MAX_PENDING_MESSAGES}，丢弃最旧消息`)
+          pendingMessages.shift()
+        }
         pendingMessages.push(msgStr)
         setTimeout(() => {
           const ch = pc.dataChannel
@@ -599,7 +605,10 @@ export function useWebRTC() {
 
           setTimeout(() => {
             clearInterval(checkInterval)
-            if (!resolved) resolved = true
+            if (!resolved) {
+              resolved = true
+              resolve(false) // 超时，明确 resolve(false)，避免 Promise 永远挂起
+            }
           }, 5000)
         })
       }
