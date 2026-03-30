@@ -503,8 +503,9 @@ export function useWebRTC() {
 
     if (store.peerConnection) {
       const pc = store.peerConnection
-      store.setPeerConnection(null)
+      // 先关再清，避免 setPeerConnection(null) 里 close 一次，这里又 close 一次
       pc.close()
+      store.setPeerConnection(null)
     }
 
     media.stopAllStreams()

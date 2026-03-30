@@ -203,9 +203,9 @@ export const useWebRTCStore = defineStore('webrtc', {
     
     // 设置 PeerConnection
     setPeerConnection(pc: RTCPeerConnection | null) {
-      if (this.peerConnection) {
-        this.peerConnection.close()
-      }
+      // 只赋值，不主动 close
+      // 调用方负责在 setPeerConnection(null) 前先 close()
+      // 避免重复 close 和不可控的副作用
       this.peerConnection = pc
     },
     
