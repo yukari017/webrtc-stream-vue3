@@ -159,6 +159,8 @@ wss.on('connection', (ws: WebSocket, req) => {
     roomManager.broadcast(roomId, { type: 'peer-disconnected' })
 
     roomManager.leaveRoom(extWs)
+    // 清理该客户端的速率限制记录
+    messageHandler.onClientDisconnect(clientId)
     activeConnections--
   })
   
