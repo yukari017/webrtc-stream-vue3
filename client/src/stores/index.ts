@@ -33,6 +33,7 @@ export interface AdaptiveBitrateState {
 
 // ─── 内部状态类型（按领域分组）────────────────────────────────────────────
 
+/** @internal */
 interface ConnectionState {
   isConnected: boolean
   isStreaming: boolean
@@ -42,6 +43,7 @@ interface ConnectionState {
   iceRestartAttempts: number
 }
 
+/** @internal */
 interface MediaState {
   localStream: MediaStream | null
   remoteStream: MediaStream | null
@@ -53,28 +55,33 @@ interface MediaState {
   signalingSocket: WebSocket | null
 }
 
+/** @internal */
 interface SettingsState {
   settings: WebRTCSettings
 }
 
+/** @internal */
 interface PerformanceState {
   performance: PerformanceData
   adaptiveBitrate: AdaptiveBitrateState
 }
 
+/** @internal */
 interface ChatState {
   chatMessages: LocalChatMessage[]
   chatNewMessage: string
   chatIsSending: boolean
 }
 
+/** @internal */
 interface StatusState {
   status: string
   statusType: 'info' | 'warning' | 'error' | 'success'
   statusHistory: StatusHistoryItem[]
 }
 
-type WebRTCState = ConnectionState & MediaState & SettingsState & PerformanceState & ChatState & StatusState
+/** @internal — Pinia 内部状态类型 */
+export type WebRTCState = ConnectionState & MediaState & SettingsState & PerformanceState & ChatState & StatusState
 
 const MAX_STATUS_HISTORY = 30
 const MAX_CHAT_MESSAGES = 100

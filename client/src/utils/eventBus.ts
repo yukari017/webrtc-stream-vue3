@@ -6,7 +6,8 @@
 import type { EventMap } from '@/types'
 
 type EventKey = keyof EventMap
-type EventCallback<T> = (data: T) => void
+export type { EventKey }
+export type EventCallback<T> = (data: T) => void
 
 // 类型安全的事件映射
 const listeners = new Map<EventKey, Set<EventCallback<unknown>>>()

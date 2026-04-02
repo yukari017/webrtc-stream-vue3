@@ -1,0 +1,28 @@
+{
+  "entryPoints": ["src/index.ts"],
+  "entryPointStrategy": "expand",
+  "out": "docs/api",
+  "name": "WebRTC Stream Vue3 API",
+  "includeVersion": true,
+  "sourceLinkTemplate": "https://github.com/yukari017/webrtc-stream-vue3/blob/{gitRevision}/{path}#L{line}",
+  "gitRevision": "develop",
+  "exclude": [
+    "**/*.spec.ts",
+    "**/*.test.ts",
+    "**/node_modules/**",
+    "**/dist/**",
+    "**/stores/**/ConnectionState*",
+    "**/stores/**/MediaState*",
+    "**/stores/**/SettingsState*",
+    "**/stores/**/PerformanceState*",
+    "**/stores/**/ChatState*",
+    "**/stores/**/StatusState*",
+    "**/stores/**/WebRTCState*"
+  ],
+  "excludeExternals": true,
+  "excludePrivate": true,
+  "excludeProtected": true,
+  "excludeInternal": true,
+  "sort": "source-order",
+  "hideGenerator": false
+}
