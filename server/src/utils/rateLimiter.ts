@@ -41,7 +41,11 @@ export class RateLimiter {
     const record = this.clients.get(clientId)
 
     if (!record || now > record.resetAt) {
-      // 新窗口开始
+      // 新窗口开始前先检查限制（防止 maxMessages=0 时错误放行）
+      if (this.config.maxMessages <= 0) {
+        logger.warn(`[${this.label}] 客户端 ${clientId} 触发限流 (maxMessages=0)`)
+        return false
+      }
       this.clients.set(clientId, { count: 1, resetAt: now + this.config.windowMs })
       return true
     }
