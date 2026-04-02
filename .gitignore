@@ -49,6 +49,9 @@ certs/
 # Testing
 coverage/
 
+# Generated docs
+docs/
+
 # Temporary files
 *.tmp
 *.temp
