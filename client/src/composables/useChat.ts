@@ -87,15 +87,14 @@ export function useChat() {
 
   // ── 消息接收 ─────────────────────────────────────────────────────────────
 
-  const onDataChannelMessage = (data: unknown): void => {
-    const msg = data as ChatMessage
-    if (msg.type !== 'chat') return
+  const onDataChannelMessage = (data: ChatMessage): void => {
+    if (data.type !== 'chat') return
 
     store.addChatMessage({
       id: `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`,
-      text: escapeHtml(msg.text || ''),
-      sender: msg.sender === store.clientId ? '我' : (msg.sender || '对方'),
-      timestamp: msg.timestamp || Date.now(),
+      text: escapeHtml(data.text || ''),
+      sender: data.sender === store.clientId ? '我' : (data.sender || '对方'),
+      timestamp: data.timestamp || Date.now(),
       isLocal: false
     })
   }
