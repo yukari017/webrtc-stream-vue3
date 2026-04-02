@@ -89,8 +89,6 @@ describe('重置与调试', () => {
 
 // ─── 类型安全版本测试 ───────────────────────────────────────────────────
 
-import type { EventMap } from '@/types'
-
 describe('类型安全版本', () => {
   it('emit() 需要两个参数（类型安全事件）', () => {
     const received: unknown[] = []
