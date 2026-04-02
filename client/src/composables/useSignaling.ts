@@ -14,6 +14,8 @@ export function useSignaling() {
   const store = useWebRTCStore()
 
   const reconnectTimer = ref<ReturnType<typeof setTimeout> | null>(null)
+  /** 记录当前 waitForConnection 注册的监听器，用于 onUnmounted 兜底清理 */
+  const waitForConnListener = ref<(() => void) | null>(null)
   const heartbeatTimer = ref<ReturnType<typeof setInterval> | null>(null)
   const reconnectStartTs = ref<number | null>(null)
 
@@ -57,12 +59,13 @@ export function useSignaling() {
       store.updateStatus('信令服务器连接成功', 'success')
       startHeartbeat(socket)
       // 通知所有等待连接就绪的调用方（waitForConnection）
-      eventBus.emit('signaling-connected')
+      eventBus.emit('signaling-connected', undefined)
     }
 
     socket.onmessage = (event) => {
       try {
         const data = JSON.parse(event.data)
+        // 直接处理信令消息
         handleSignalingMessage(data)
       } catch (error) {
         console.error('信令消息解析错误:', error)
@@ -100,13 +103,13 @@ export function useSignaling() {
       case 'room-ready':
         if (store.isStreaming) {
           store.updateStatus('观看端已就绪，正在创建P2P连接...', 'info')
-          eventBus.emit('room-ready')
+          eventBus.emit('room-ready', undefined)
         }
         break
 
       case 'peer-disconnected':
         store.updateStatus('对方已断开连接', 'warning')
-        eventBus.emit('peer-disconnected')
+        eventBus.emit('peer-disconnected', undefined)
         break
 
       case 'room-full':
@@ -117,7 +120,7 @@ export function useSignaling() {
         break
 
       default:
-        eventBus.emit('message', data)
+        eventBus.emitUnsafe('message', data)
     }
   }
 
@@ -210,16 +213,19 @@ export function useSignaling() {
     return new Promise<void>((resolve, reject) => {
       const timer = setTimeout(() => {
         eventBus.off('signaling-connected', onConnected)
+        waitForConnListener.value = null
         reject(new Error('信令连接超时'))
       }, timeoutMs)
 
       const onConnected = () => {
         clearTimeout(timer)
         eventBus.off('signaling-connected', onConnected) // once 语义：触发后立即 off
+        waitForConnListener.value = null
         resolve()
       }
 
       eventBus.on('signaling-connected', onConnected)
+      waitForConnListener.value = onConnected
     })
   }
 
@@ -249,6 +255,11 @@ export function useSignaling() {
       clearTimeout(reconnectTimer.value)
     }
     stopHeartbeat()
+    // 兜底清理：若组件销毁时 waitForConnection 仍在等待，移除其注册的监听器
+    if (waitForConnListener.value) {
+      eventBus.off('signaling-connected', waitForConnListener.value)
+      waitForConnListener.value = null
+    }
   })
 
   // ─── 代理 eventBus 事件，保持旧 API 兼容 ────────────────────────────────

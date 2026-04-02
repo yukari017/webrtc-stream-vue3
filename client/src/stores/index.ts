@@ -1,13 +1,28 @@
+/**
+ * stores/index.ts - WebRTC 状态管理
+ *
+ * 渐进式重构目标：
+ * - 内部按领域分组（连接/媒体/设置/性能/聊天/状态）
+ * - 对外 API 保持不变，避免破坏性改动
+ *
+ * 未来计划：
+ * - 子模块（connection/media/performance/chat/status）逐步替代
+ * - composables 迁移到对应子 store
+ */
+
 import { defineStore } from 'pinia'
-import type { 
-  WebRTCSettings, 
-  PerformanceData, 
-  StatusHistoryItem, 
+import type {
+  WebRTCSettings,
+  PerformanceData,
+  StatusHistoryItem,
   AudioDevice,
   LocalChatMessage
-} from '@/types/webrtc'
+} from '@/types'
 
-/** 画质质量等级 */
+// ─── 导出的类型 ─────────────────────────────────────────────────────────
+
+export type { WebRTCSettings, PerformanceData, StatusHistoryItem, AudioDevice, LocalChatMessage }
+
 export type QualityTier = 'low' | 'medium' | 'high'
 
 export interface AdaptiveBitrateState {
@@ -16,50 +31,55 @@ export interface AdaptiveBitrateState {
   qualityTier: QualityTier
 }
 
-interface WebRTCState {
-  // 连接状态
+// ─── 内部状态类型（按领域分组）────────────────────────────────────────────
+
+interface ConnectionState {
   isConnected: boolean
   isStreaming: boolean
   roomId: string
   clientId: string
-  
-  // 媒体流
+  signalingReconnectAttempts: number
+  iceRestartAttempts: number
+}
+
+interface MediaState {
   localStream: MediaStream | null
   remoteStream: MediaStream | null
   screenStream: MediaStream | null
   audioStream: MediaStream | null
-  
-  // 设备
   selectedAudioDeviceId: string | null
   audioDevices: AudioDevice[]
-  
-  // WebRTC
   peerConnection: RTCPeerConnection | null
   signalingSocket: WebSocket | null
-  
-  // 状态
-  status: string
-  statusType: 'info' | 'warning' | 'error' | 'success'
-  statusHistory: StatusHistoryItem[]
-  
-  // 重连计数
-  signalingReconnectAttempts: number
-  iceRestartAttempts: number
-  
-  // 设置
+}
+
+interface SettingsState {
   settings: WebRTCSettings
-  
-  // 性能监控
+}
+
+interface PerformanceState {
   performance: PerformanceData
-
-  // 自适应码率
   adaptiveBitrate: AdaptiveBitrateState
+}
 
-  // 聊天
+interface ChatState {
   chatMessages: LocalChatMessage[]
   chatNewMessage: string
   chatIsSending: boolean
 }
+
+interface StatusState {
+  status: string
+  statusType: 'info' | 'warning' | 'error' | 'success'
+  statusHistory: StatusHistoryItem[]
+}
+
+type WebRTCState = ConnectionState & MediaState & SettingsState & PerformanceState & ChatState & StatusState
+
+const MAX_STATUS_HISTORY = 30
+const MAX_CHAT_MESSAGES = 100
+
+// ─── Store 定义 ─────────────────────────────────────────────────────────
 
 export const useWebRTCStore = defineStore('webrtc', {
   state: (): WebRTCState => ({
@@ -68,30 +88,19 @@ export const useWebRTCStore = defineStore('webrtc', {
     isStreaming: false,
     roomId: '',
     clientId: '',
-    
+    signalingReconnectAttempts: 0,
+    iceRestartAttempts: 0,
+
     // 媒体流
     localStream: null,
     remoteStream: null,
     screenStream: null,
     audioStream: null,
-    
-    // 设备
     selectedAudioDeviceId: null,
     audioDevices: [],
-    
-    // WebRTC
     peerConnection: null,
     signalingSocket: null,
-    
-    // 状态
-    status: '就绪',
-    statusType: 'info',
-    statusHistory: [],
-    
-    // 重连计数
-    signalingReconnectAttempts: 0,
-    iceRestartAttempts: 0,
-    
+
     // 设置
     settings: {
       frameRate: 60,
@@ -100,7 +109,7 @@ export const useWebRTCStore = defineStore('webrtc', {
       shareAudio: true,
       shareCursor: true
     },
-    
+
     // 性能监控
     performance: {
       bitrate: 0,
@@ -109,8 +118,6 @@ export const useWebRTCStore = defineStore('webrtc', {
       packetLoss: 0,
       rtt: 0
     },
-
-    // 自适应码率
     adaptiveBitrate: {
       enabled: false,
       currentBitrateKbps: 0,
@@ -120,261 +127,181 @@ export const useWebRTCStore = defineStore('webrtc', {
     // 聊天
     chatMessages: [],
     chatNewMessage: '',
-    chatIsSending: false
+    chatIsSending: false,
+
+    // 状态
+    status: '就绪',
+    statusType: 'info',
+    statusHistory: []
   }),
-  
+
   actions: {
-    // 更新状态
+    // ── 状态 ────────────────────────────────────────────────────────────
     updateStatus(message: string, type: 'info' | 'warning' | 'error' | 'success' = 'info') {
       const timestamp = new Date().toLocaleTimeString()
       this.status = message
       this.statusType = type
-      
-      // 添加到历史记录
-      this.statusHistory.push({
-        timestamp,
-        message,
-        type
-      })
-      
-      // 限制历史记录数量
-      if (this.statusHistory.length > 30) {
+      this.statusHistory.push({ timestamp, message, type })
+      if (this.statusHistory.length > MAX_STATUS_HISTORY) {
         this.statusHistory.shift()
       }
     },
-    
-    // 清除状态
+
     clearStatus() {
       this.status = '就绪'
       this.statusType = 'info'
       this.statusHistory = []
     },
-    
-    // 设置房间
-    setRoom(roomId: string) {
-      this.roomId = roomId
-    },
-    
-    // 设置客户端ID
-    setClientId(clientId: string) {
-      this.clientId = clientId
-    },
-    
-    // 设置连接状态
-    setConnected(connected: boolean) {
-      this.isConnected = connected
-    },
-    
-    // 设置推流状态
-    setStreaming(streaming: boolean) {
-      this.isStreaming = streaming
-    },
-    
-    // 设置本地流
+
+    // ── 连接 ────────────────────────────────────────────────────────────
+    setRoom(roomId: string) { this.roomId = roomId },
+    setClientId(clientId: string) { this.clientId = clientId },
+    setConnected(connected: boolean) { this.isConnected = connected },
+    setStreaming(streaming: boolean) { this.isStreaming = streaming },
+    incrementReconnectAttempts() { this.signalingReconnectAttempts++ },
+    incrementIceRestartAttempts() { this.iceRestartAttempts++ },
+    resetReconnectAttempts() { this.signalingReconnectAttempts = 0 },
+    resetIceRestartAttempts() { this.iceRestartAttempts = 0 },
+
+    // ── 媒体流 ──────────────────────────────────────────────────────────
     setLocalStream(stream: MediaStream | null) {
       if (this.localStream) {
-        this.localStream.getTracks().forEach(track => track.stop())
+        this.localStream.getTracks().forEach(t => t.stop())
       }
       this.localStream = stream
     },
-    
-    // 设置远程流
+
     setRemoteStream(stream: MediaStream | null) {
       if (this.remoteStream) {
-        this.remoteStream.getTracks().forEach(track => track.stop())
+        this.remoteStream.getTracks().forEach(t => t.stop())
       }
       this.remoteStream = stream
     },
-    
-    // 设置屏幕流
+
     setScreenStream(stream: MediaStream | null) {
       if (this.screenStream) {
-        this.screenStream.getTracks().forEach(track => track.stop())
+        this.screenStream.getTracks().forEach(t => t.stop())
       }
       this.screenStream = stream
     },
-    
-    // 设置音频流
+
     setAudioStream(stream: MediaStream | null) {
       if (this.audioStream) {
-        this.audioStream.getTracks().forEach(track => track.stop())
+        this.audioStream.getTracks().forEach(t => t.stop())
       }
       this.audioStream = stream
     },
-    
-    // 设置音频设备
-    setAudioDevices(devices: AudioDevice[]) {
-      this.audioDevices = devices
-    },
-    
-    // 设置选中的音频设备
-    setSelectedAudioDevice(deviceId: string | null) {
-      this.selectedAudioDeviceId = deviceId
-    },
-    
-    // 设置 PeerConnection
+
+    setAudioDevices(devices: AudioDevice[]) { this.audioDevices = devices },
+    setSelectedAudioDevice(deviceId: string | null) { this.selectedAudioDeviceId = deviceId },
+
     setPeerConnection(pc: RTCPeerConnection | null) {
-      // 只赋值，不主动 close
-      // 调用方负责在 setPeerConnection(null) 前先 close()
-      // 避免重复 close 和不可控的副作用
+      // 只赋值；close 由调用方在赋值前负责，避免重复 close
       this.peerConnection = pc
     },
-    
-    // 设置信令Socket
+
     setSignalingSocket(socket: WebSocket | null) {
       if (this.signalingSocket) {
         this.signalingSocket.close()
       }
       this.signalingSocket = socket
     },
-    
-    // 更新设置
+
+    // ── 设置 ────────────────────────────────────────────────────────────
     updateSettings(newSettings: Partial<WebRTCSettings>) {
       this.settings = { ...this.settings, ...newSettings }
     },
-    
-    // 更新性能数据
+
+    // ── 性能 ────────────────────────────────────────────────────────────
     updatePerformance(data: Partial<PerformanceData>) {
       this.performance = { ...this.performance, ...data }
     },
-    
-    // 增加重连计数
-    incrementReconnectAttempts() {
-      this.signalingReconnectAttempts++
-    },
-    
-    // 增加ICE重启计数
-    incrementIceRestartAttempts() {
-      this.iceRestartAttempts++
-    },
-    
-    // 重置重连计数
-    resetReconnectAttempts() {
-      this.signalingReconnectAttempts = 0
-    },
-    
-    // 重置ICE重启计数
-    resetIceRestartAttempts() {
-      this.iceRestartAttempts = 0
-    },
 
-    // 更新自适应码率状态
     updateAdaptiveBitrate(data: Partial<AdaptiveBitrateState>) {
       this.adaptiveBitrate = { ...this.adaptiveBitrate, ...data }
     },
 
-    // ── 聊天 ──────────────────────────────────────────────────────────────
-
-    /** 追加一条聊天消息，超过 100 条时丢弃最旧的 */
+    // ── 聊天 ────────────────────────────────────────────────────────────
     addChatMessage(message: LocalChatMessage) {
       this.chatMessages.push(message)
-      if (this.chatMessages.length > 100) {
-        this.chatMessages = this.chatMessages.slice(-100)
+      if (this.chatMessages.length > MAX_CHAT_MESSAGES) {
+        this.chatMessages = this.chatMessages.slice(-MAX_CHAT_MESSAGES)
       }
     },
 
-    /** 按 id 删除一条消息（用于乐观更新失败时回滚） */
     removeChatMessage(id: string) {
       this.chatMessages = this.chatMessages.filter(m => m.id !== id)
     },
 
-    /** 清空聊天记录（换房间 / 断开连接时调用） */
     clearChatMessages() {
       this.chatMessages = []
       this.chatNewMessage = ''
       this.chatIsSending = false
     },
 
-    /** 更新输入框草稿 */
-    setChatNewMessage(text: string) {
-      this.chatNewMessage = text
-    },
+    setChatNewMessage(text: string) { this.chatNewMessage = text },
+    setChatIsSending(sending: boolean) { this.chatIsSending = sending },
 
-    /** 更新发送中标志位 */
-    setChatIsSending(sending: boolean) {
-      this.chatIsSending = sending
-    },
-    
-    // 清理所有资源
+    // ── 清理 ────────────────────────────────────────────────────────────
     cleanup() {
       if (this.peerConnection) {
         this.peerConnection.close()
         this.peerConnection = null
       }
-      
       if (this.signalingSocket) {
         this.signalingSocket.close()
         this.signalingSocket = null
       }
-      
       if (this.localStream) {
-        this.localStream.getTracks().forEach(track => track.stop())
+        this.localStream.getTracks().forEach(t => t.stop())
         this.localStream = null
       }
-      
       if (this.remoteStream) {
-        this.remoteStream.getTracks().forEach(track => track.stop())
+        this.remoteStream.getTracks().forEach(t => t.stop())
         this.remoteStream = null
       }
-      
       if (this.screenStream) {
-        this.screenStream.getTracks().forEach(track => track.stop())
+        this.screenStream.getTracks().forEach(t => t.stop())
         this.screenStream = null
       }
-      
       if (this.audioStream) {
-        this.audioStream.getTracks().forEach(track => track.stop())
+        this.audioStream.getTracks().forEach(t => t.stop())
         this.audioStream = null
       }
-      
       this.isConnected = false
       this.isStreaming = false
       this.roomId = ''
       this.clientId = ''
       this.resetReconnectAttempts()
       this.resetIceRestartAttempts()
-      this.performance = {
-        bitrate: 0,
-        resolution: '0×0',
-        framerate: 0,
-        packetLoss: 0,
-        rtt: 0
-      }
+      this.performance = { bitrate: 0, resolution: '0×0', framerate: 0, packetLoss: 0, rtt: 0 }
+      this.adaptiveBitrate = { enabled: false, currentBitrateKbps: 0, qualityTier: 'high' }
       this.clearChatMessages()
       this.updateStatus('已清理所有资源', 'info')
     }
   },
-  
+
   getters: {
-    // 获取当前状态
     currentStatus: (state): StatusHistoryItem => ({
       message: state.status,
       type: state.statusType,
       timestamp: new Date().toLocaleTimeString()
     }),
-    
-    // 获取状态历史
+
     statusLog: (state): StatusHistoryItem[] => state.statusHistory,
-    
-    // 获取连接信息
+
     connectionInfo: (state) => ({
       isConnected: state.isConnected,
       isStreaming: state.isStreaming,
       roomId: state.roomId,
       clientId: state.clientId
     }),
-    
-    // 获取性能信息
+
     performanceInfo: (state): PerformanceData => state.performance,
-    
-    // 获取设置
     currentSettings: (state): WebRTCSettings => state.settings,
-    
-    // 获取音频设备
     availableAudioDevices: (state): AudioDevice[] => state.audioDevices,
-    
-    // 获取选中的音频设备
-    selectedAudioDevice: (state): AudioDevice | undefined => 
-      state.audioDevices.find(device => device.deviceId === state.selectedAudioDeviceId)
+
+    selectedAudioDevice: (state): AudioDevice | undefined =>
+      state.audioDevices.find(d => d.deviceId === state.selectedAudioDeviceId)
   }
 })
