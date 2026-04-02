@@ -9,6 +9,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "type-check": "vue-tsc --noEmit",
+    "lint": "eslint src --ext .vue,.ts --fix",
     "test": "vitest run",
     "test:watch": "vitest"
   },
@@ -18,14 +19,20 @@
     "vue-router": "^4.2.0"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@types/node": "^25.5.0",
+    "@typescript-eslint/eslint-plugin": "^8.58.0",
+    "@typescript-eslint/parser": "^8.58.0",
     "@vitejs/plugin-vue": "^5.0.0",
     "@vue/test-utils": "2",
+    "eslint": "^10.1.0",
+    "eslint-plugin-vue": "^10.8.0",
     "happy-dom": "^14.12.3",
     "terser": "^5.46.1",
     "typescript": "^6.0.2",
     "vite": "^5.0.0",
     "vitest": "^1.6.1",
+    "vue-eslint-parser": "^10.4.0",
     "vue-tsc": "^3.2.6"
   }
 }

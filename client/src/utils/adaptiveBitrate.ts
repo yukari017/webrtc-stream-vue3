@@ -91,6 +91,7 @@ function computeTargetBitrate(
     } else {
       // 连续达标则解除约束，避免永久锁死
       if (encoderConstrained && DEBUG) {
+        // eslint-disable-next-line no-console
         console.log(`[ABR] ✓ 编码器达标率恢复: actual=${actualKbps.toFixed(0)}kbps / target=${currentKbps}kbps`)
       }
       encoderConstrained = false
@@ -116,6 +117,7 @@ function computeTargetBitrate(
     )
 
     if (DEBUG) {
+      // eslint-disable-next-line no-console
       console.log(
         `[ABR] ↓ 降码率: ${currentKbps}kbps → ${newBitrate}kbps ` +
         `(packetLoss=${packetLoss.toFixed(1)}%, rtt=${rtt}ms, actual=${actualKbps.toFixed(0)}kbps)`
@@ -136,6 +138,7 @@ function computeTargetBitrate(
     if (newBitrate > currentKbps + 200) {
       lastAdjustTime = now
       if (DEBUG) {
+        // eslint-disable-next-line no-console
         console.log(
           `[ABR] ↑ 升码率: ${currentKbps}kbps → ${newBitrate}kbps ` +
           `(packetLoss=${packetLoss.toFixed(1)}%, rtt=${rtt}ms, actual=${actualKbps.toFixed(0)}kbps, ratio=${(actualKbps / currentKbps * 100).toFixed(0)}%)`
@@ -149,6 +152,7 @@ function computeTargetBitrate(
   // ── 编码器受限说明（仅首次进入受限状态时输出）───────────────
   if (encoderConstrained && !encoderConstrainedWarned && isHighQuality) {
     if (DEBUG) {
+      // eslint-disable-next-line no-console
       console.log(
         `[ABR] ⏸ 暂停升码率: actual=${actualKbps.toFixed(0)}kbps / target=${currentKbps}kbps ` +
         `= ${(actualKbps / currentKbps * 100).toFixed(0)}% < ${ENCODER_ACHIEVABLE_RATIO * 100}%（编码器受限）`
@@ -230,6 +234,7 @@ export function startAdaptiveBitrate(initialBitrateKbps: number): void {
 
   adaptInterval = setInterval(doAdapt, ADAPT_INTERVAL_MS)
   if (DEBUG) {
+    // eslint-disable-next-line no-console
     console.log(`[ABR] 启动自适应码率控制器，初始码率: ${initialBitrateKbps}kbps`)
   }
 }
@@ -252,6 +257,7 @@ export function stopAdaptiveBitrate(): void {
   const store = useWebRTCStore()
   store.updateAdaptiveBitrate({ enabled: false })
   if (DEBUG) {
+    // eslint-disable-next-line no-console
     console.log('[ABR] 停止自适应码率控制器')
   }
 }
