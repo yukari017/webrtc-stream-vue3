@@ -245,7 +245,7 @@ export function useWebRTC() {
           break
         case 'closed':
           store.updateStatus('P2P 连接已关闭', 'info')
-          eventBus.emit('connection-closed')
+          eventBus.emit('connection-closed', undefined)
           break
       }
     }
@@ -474,8 +474,13 @@ export function useWebRTC() {
     try {
       signaling.connectSignaling(roomId)
 
-      // 事件驱动等待，替代 setInterval 轮询
-      await signaling.waitForConnection()
+      // 事件驱动等待，替代 setInterval 轮询；超时由 waitForConnection 内部 reject
+      try {
+        await signaling.waitForConnection()
+      } catch (err) {
+        store.updateStatus(`信令连接失败: ${(err as Error).message}`, 'error')
+        return false
+      }
 
       createPeerConnection()
 
@@ -545,8 +550,13 @@ export function useWebRTC() {
     try {
       signaling.connectSignaling(roomId)
 
-      // 事件驱动等待，替代 setInterval 轮询
-      await signaling.waitForConnection()
+      // 事件驱动等待，替代 setInterval 轮询；超时由 waitForConnection 内部 reject
+      try {
+        await signaling.waitForConnection()
+      } catch (err) {
+        store.updateStatus(`信令连接失败: ${(err as Error).message}`, 'error')
+        return false
+      }
 
       createPeerConnection()
 
@@ -782,11 +792,13 @@ export function useWebRTC() {
   }
 
   const onPeerDisconnected = (): void => {
-    eventBus.emit('connection-closed')
+    eventBus.emit('connection-closed', undefined)
   }
 
+  // 'room-ready' 和 'connection-closed' 是类型安全事件
   eventBus.on('room-ready', onRoomReady)
-  eventBus.on('message', onMessage)
+  // 'message' 是动态类型，使用 unsafe 版本
+  eventBus.onUnsafe('message', onMessage)
   eventBus.on('peer-disconnected', onPeerDisconnected)
 
   // ─── 清理 ───────────────────────────────────────────────────────────────
@@ -794,7 +806,7 @@ export function useWebRTC() {
   onUnmounted(() => {
     // 取消所有 eventBus 订阅，防止组件重挂载时监听器叠加
     eventBus.off('room-ready', onRoomReady)
-    eventBus.off('message', onMessage)
+    eventBus.offUnsafe('message', onMessage)
     eventBus.off('peer-disconnected', onPeerDisconnected)
 
     if (iceRestartTimer.value) {
@@ -802,6 +814,13 @@ export function useWebRTC() {
     }
     stopStatsCollection()
     stopStreaming()
+
+    // ── 清理暂存数据，防止内存泄漏 ──────────────────────────────────────
+    pendingIceCandidates.value = []
+    pendingMessages.value = []
+    dataChannelReady.value = false
+    pendingOffer.value = null
+    isNegotiating.value = false
   })
 
   return {

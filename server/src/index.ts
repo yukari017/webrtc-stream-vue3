@@ -154,11 +154,11 @@ wss.on('connection', (ws: WebSocket, req) => {
   extWs.on('close', (code: number, reason: Buffer) => {
     logger.info(`客户端断开: ${clientId}, 房间: ${roomId}, code=${code}, reason=${reason.toString()}`)
 
-    // 先广播（此时房间仍存在），再离开（可能触发房间删除）
-    // 顺序不能颠倒：leaveRoom 在最后一人离开时会删除房间，broadcast 会静默失败
-    roomManager.broadcast(roomId, { type: 'peer-disconnected' })
-
+    // 先离开房间，再广播（离开后对方才知道房间状态已变化，可正确处理重连）
     roomManager.leaveRoom(extWs)
+    roomManager.broadcast(roomId, { type: 'peer-disconnected' }, extWs)
+    // 清理该客户端的速率限制记录
+    messageHandler.onClientDisconnect(clientId)
     activeConnections--
   })
   

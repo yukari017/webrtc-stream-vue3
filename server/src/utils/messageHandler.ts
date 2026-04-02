@@ -3,6 +3,7 @@
  */
 
 import { logger } from '../utils/logger'
+import { RateLimiter } from '../utils/rateLimiter'
 import type { RoomManager } from '../utils/roomManager'
 import type {
   BaseMessage,
@@ -14,6 +15,18 @@ import type {
 export class MessageHandler {
   private roomManager: RoomManager
 
+  /** 通用消息速率限制（防止泛洪攻击） */
+  private readonly generalLimiter = new RateLimiter(
+    { windowMs: 10_000, maxMessages: 50 },
+    'general'
+  )
+
+  /** 聊天消息速率限制（更严格） */
+  private readonly chatLimiter = new RateLimiter(
+    { windowMs: 10_000, maxMessages: 10 },
+    'chat'
+  )
+
   constructor(roomManager: RoomManager) {
     this.roomManager = roomManager
   }
@@ -22,10 +35,16 @@ export class MessageHandler {
 
   /**
    * 处理接收到的消息
-   * 遵循：先类型守卫 → 再路由分发 → 最后广播
+   * 遵循：限流 → JSON 解析 → 基础类型守卫 → 路由分发
    */
   handle(ws: ExtWebSocket, rawMessage: string): void {
-    // 1. JSON 解析
+    // 1. 速率限制（ping 消息不计入）
+    if (!this.generalLimiter.check(ws.id)) {
+      logger.warn(`[RateLimit] 客户端 ${ws.id} 触发限流，忽略消息`)
+      return
+    }
+
+    // 2. JSON 解析
     let parsed: unknown
     try {
       parsed = JSON.parse(rawMessage)
@@ -34,13 +53,13 @@ export class MessageHandler {
       return
     }
 
-    // 2. 基础类型守卫
+    // 3. 基础类型守卫
     if (!this.isBaseMessage(parsed)) {
       logger.warn(`缺少 type 字段，跳过`)
       return
     }
 
-    // 3. 路由分发（由 type 触发 discriminated union 联合类型收窄）
+    // 4. 路由分发（由 type 触发 discriminated union 联合类型收窄）
     switch (parsed.type) {
       case 'ping':
         this.handlePing(ws, parsed as PingMessage)
@@ -53,12 +72,24 @@ export class MessageHandler {
         break
 
       case 'chat-message':
+        if (!this.chatLimiter.check(ws.id)) {
+          logger.warn(`[RateLimit/Chat] 客户端 ${ws.id} 聊天频率超限`)
+          return
+        }
         this.handleChat(ws, parsed as ChatMessage)
         break
 
       default:
         logger.warn(`未知消息类型: ${parsed.type}，忽略`)
     }
+  }
+
+  // ─── 清理 ────────────────────────────────────────────────────────────────
+
+  /** 客户端断开时移除限流记录 */
+  onClientDisconnect(clientId: string): void {
+    this.generalLimiter.remove(clientId)
+    this.chatLimiter.remove(clientId)
   }
 
   // ─── 心跳 ────────────────────────────────────────────────────────────────
